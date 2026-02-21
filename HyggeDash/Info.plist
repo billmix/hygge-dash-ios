@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>OpenWeatherMapAPIKey</key>
+	<string>e9804032b7ae07976cc1a4333e99813f</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to show local weather.</string>
+	<key>NSHomeKitUsageDescription</key>
+	<string>HyggeDash needs access to HomeKit to control your smart home devices and scenes.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>HyggeDash needs local network access to communicate with your Sonos speakers via the Raspberry Pi server.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_hap._tcp</string>
+	</array>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
