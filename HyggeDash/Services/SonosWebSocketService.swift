@@ -25,7 +25,7 @@ class SonosWebSocketService: NSObject, ObservableObject {
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue("Sec-WebSocket-Protocol", forHTTPHeaderField: "v1.api.smartspeaker.audio")
+        request.addValue("v1.api.smartspeaker.audio", forHTTPHeaderField: "Sec-WebSocket-Protocol")
 
         urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
         webSocketTask = urlSession?.webSocketTask(with: request)

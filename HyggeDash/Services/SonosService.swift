@@ -228,6 +228,16 @@ class SonosService: ObservableObject {
         }
     }
 
+    // MARK: - Compat shim (state is now push-based via WebSocket)
+    func fetchPlaybackState() async {
+        // State arrives via WebSocket subscriptions — nothing to poll.
+        // If we have a household/group, re-subscribe to ensure we're current.
+        if let hId = householdId, let gId = groupId {
+            webSocketService.subscribe(namespace: "playback", householdId: hId, groupId: gId)
+            webSocketService.subscribe(namespace: "playerVolume", householdId: hId, groupId: gId)
+        }
+    }
+
     // MARK: - Commands
 
     func sendCommand(_ command: SonosCommand) async {
