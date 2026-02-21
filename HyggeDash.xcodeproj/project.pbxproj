@@ -15,7 +15,6 @@
 		3F05FDF72F1EA220003DFFDD /* Station.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDF62F1EA220003DFFDD /* Station.swift */; };
 		3F05FDF92F1EA236003DFFDD /* StationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDF82F1EA236003DFFDD /* StationsService.swift */; };
 		3F05FDFB2F1EA24C003DFFDD /* StationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDFA2F1EA24C003DFFDD /* StationPickerView.swift */; };
-		3F8478692F4A7989002553A2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 3F8478682F4A7989002553A2 /* Config.xcconfig */; };
 		E80000012B0000000000001 /* HyggeDashApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000001 /* HyggeDashApp.swift */; };
 		E80000012B0000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000002 /* ContentView.swift */; };
 		E80000012B0000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000003 /* Assets.xcassets */; };
@@ -208,7 +207,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E80000012B0000000000004 /* Preview Assets.xcassets in Resources */,
-				3F8478692F4A7989002553A2 /* Config.xcconfig in Resources */,
 				E80000012B0000000000003 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -372,6 +370,7 @@
 		};
 		E80000006B0000000000005 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3F8478682F4A7989002553A2 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -405,6 +404,7 @@
 		};
 		E80000006B0000000000006 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3F8478682F4A7989002553A2 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
