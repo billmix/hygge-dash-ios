@@ -228,6 +228,27 @@ class SonosService: ObservableObject {
         }
     }
 
+    // MARK: - Station Playback
+
+    func playStation(_ station: Station) async {
+        guard let hId = householdId, let gId = groupId else {
+            errorMessage = "No group connected"
+            return
+        }
+
+        webSocketService.send([
+            "namespace": "playbackSession",
+            "command": "loadStreamUrl",
+            "householdId": hId,
+            "groupId": gId,
+            "streamUrl": station.url,
+            "itemId": station.url,
+            "stationMetadata": [
+                "name": station.name,
+            ],
+        ])
+    }
+
     // MARK: - Compat shim (state is now push-based via WebSocket)
     func fetchPlaybackState() async {
         // State arrives via WebSocket subscriptions — nothing to poll.
