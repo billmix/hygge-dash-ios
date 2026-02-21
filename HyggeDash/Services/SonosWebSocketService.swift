@@ -1,29 +1,34 @@
 import Foundation
+import Combine
 
 @MainActor
 class SonosWebSocketService: NSObject, ObservableObject {
-    @Published var trackInfo: SonosTrackInfo?
     @Published var isConnected = false
 
     private var webSocketTask: URLSessionWebSocketTask?
     private var urlSession: URLSession?
     private var reconnectTask: Task<Void, Never>?
+    private var speakerIP: String?
+    private var accessToken: String?
 
-    var webSocketURL: String {
-        let ip = UserDefaults.standard.string(forKey: "sonosServerIP") ?? "192.168.1.16"
-        return "ws://\(ip):8765"
-    }
+    var onEvent: ((String, [String: Any]) -> Void)?
 
-    func connect() {
-        guard webSocketTask == nil else { return }
+    func connect(to ip: String, token: String) {
+        disconnect()
+        speakerIP = ip
+        accessToken = token
 
-        guard let url = URL(string: webSocketURL) else {
+        guard let url = URL(string: "ws://\(ip):1400/websocket/api") else {
             print("Invalid WebSocket URL")
             return
         }
 
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.addValue("Sec-WebSocket-Protocol", forHTTPHeaderField: "v1.api.smartspeaker.audio")
+
         urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
-        webSocketTask = urlSession?.webSocketTask(with: url)
+        webSocketTask = urlSession?.webSocketTask(with: request)
         webSocketTask?.resume()
 
         receiveMessage()
@@ -39,10 +44,35 @@ class SonosWebSocketService: NSObject, ObservableObject {
         isConnected = false
     }
 
+    func send(_ message: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: message),
+              let text = String(data: data, encoding: .utf8) else { return }
+
+        webSocketTask?.send(.string(text)) { error in
+            if let error {
+                print("WebSocket send error: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func subscribe(namespace: String, householdId: String, groupId: String? = nil) {
+        var message: [String: Any] = [
+            "namespace": namespace,
+            "command": "subscribe",
+            "householdId": householdId,
+        ]
+        if let groupId {
+            message["groupId"] = groupId
+        }
+        send(message)
+    }
+
+    // MARK: - Private
+
     private func receiveMessage() {
         webSocketTask?.receive { [weak self] result in
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
 
                 switch result {
                 case .success(let message):
@@ -56,7 +86,6 @@ class SonosWebSocketService: NSObject, ObservableObject {
                     @unknown default:
                         break
                     }
-                    // Continue listening for more messages
                     self.receiveMessage()
 
                 case .failure(let error):
@@ -69,23 +98,19 @@ class SonosWebSocketService: NSObject, ObservableObject {
     }
 
     private func handleMessage(_ text: String) {
-        guard let data = text.data(using: .utf8) else { return }
+        guard let data = text.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let namespace = json["namespace"] as? String else { return }
 
-        do {
-            let trackInfo = try JSONDecoder().decode(SonosTrackInfo.self, from: data)
-            self.trackInfo = trackInfo
-        } catch {
-            print("Failed to decode WebSocket message: \(error)")
-        }
+        onEvent?(namespace, json)
     }
 
     private func scheduleReconnect() {
         reconnectTask?.cancel()
         reconnectTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(5))
-            guard !Task.isCancelled else { return }
-            self.webSocketTask = nil
-            self.connect()
+            guard !Task.isCancelled, let ip = speakerIP, let token = accessToken else { return }
+            self.connect(to: ip, token: token)
         }
     }
 }

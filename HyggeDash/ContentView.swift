@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var homeKitManager = HomeKitManager()
     @StateObject private var sonosService = SonosService()
+    @StateObject private var sonosAuthService = SonosAuthService()
     @StateObject private var quotesService = QuotesService()
     @StateObject private var weatherService = WeatherService()
 
@@ -24,14 +25,19 @@ struct ContentView: View {
                         portraitLayout
                     }
                 }
+
+                if !sonosAuthService.isAuthenticated {
+                    connectOverlay
+                }
             }
         }
         .onAppear {
             homeKitManager.startHomeKit()
             weatherService.startWeatherUpdates()
+            sonosService.configure(authService: sonosAuthService)
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(sonosService: sonosService)
+            SettingsView(sonosService: sonosService, authService: sonosAuthService)
         }
     }
 
@@ -67,6 +73,54 @@ struct ContentView: View {
         .padding(.bottom, 8)
     }
 
+    private var connectOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                Image(systemName: "hifispeaker.2.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.green)
+
+                Text("Connect Your Sonos")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("Sign in with your Sonos account to control your speakers.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                Button {
+                    sonosAuthService.authenticate()
+                } label: {
+                    Text("Connect Sonos Account")
+                        .fontWeight(.medium)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal, 40)
+
+                Button("Skip for Now") {
+                    // Dismiss by navigating to settings later
+                    showingSettings = true
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            }
+            .padding(40)
+            .background(Color(.systemBackground))
+            .cornerRadius(24)
+            .shadow(radius: 20)
+            .padding(40)
+        }
+    }
+
     private var landscapeLayout: some View {
         GeometryReader { geometry in
             HStack(spacing: 20) {
@@ -80,17 +134,17 @@ struct ContentView: View {
                     HStack(spacing: 20) {
                         TimeWidgetView()
                             .frame(maxWidth: .infinity)
-                        
+
                         WeatherWidgetView(weatherService: weatherService)
                             .frame(maxWidth: .infinity)
                     }
                     .frame(height: geometry.size.height * 0.40)
-                    
+
                     // Bottom row: HomeKit and Music (taller for controls)
                     HStack(spacing: 20) {
                         HomeKitView(homeKitManager: homeKitManager)
                             .frame(maxWidth: .infinity)
-                        
+
                         MediaControlView(sonosService: sonosService)
                             .frame(maxWidth: .infinity)
                     }

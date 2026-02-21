@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>SonosClientID</key>
+	<string>$(SONOS_CLIENT_ID)</string>
+	<key>SonosClientSecret</key>
+	<string>$(SONOS_CLIENT_SECRET)</string>
+	<key>SonosRedirectURI</key>
+	<string>$(SONOS_REDIRECT_URI)</string>
 	<key>OpenWeatherMapAPIKey</key>
 	<string>e9804032b7ae07976cc1a4333e99813f</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -9,10 +15,22 @@
 	<key>NSHomeKitUsageDescription</key>
 	<string>HyggeDash needs access to HomeKit to control your smart home devices and scenes.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>HyggeDash needs local network access to communicate with your Sonos speakers via the Raspberry Pi server.</string>
+	<string>HyggeDash needs local network access to discover and communicate with your Sonos speakers.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_hap._tcp</string>
+		<string>_sonos._tcp</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hyggehousehold</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.hyggedash.app</string>
+		</dict>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

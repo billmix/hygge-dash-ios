@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3FA000012F500000003DFFDD /* SonosAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA000002F500000003DFFDD /* SonosAuthService.swift */; };
 		3F05FDE72F1C25D9003DFFDD /* TimeWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDE62F1C25D9003DFFDD /* TimeWidgetView.swift */; };
 		3F05FDE92F1C3947003DFFDD /* WeatherWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDE82F1C3947003DFFDD /* WeatherWidgetView.swift */; };
 		3F05FDEB2F1D55FD003DFFDD /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDEA2F1D55FD003DFFDD /* WeatherService.swift */; };
@@ -14,6 +15,7 @@
 		3F05FDF72F1EA220003DFFDD /* Station.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDF62F1EA220003DFFDD /* Station.swift */; };
 		3F05FDF92F1EA236003DFFDD /* StationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDF82F1EA236003DFFDD /* StationsService.swift */; };
 		3F05FDFB2F1EA24C003DFFDD /* StationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDFA2F1EA24C003DFFDD /* StationPickerView.swift */; };
+		3F8478692F4A7989002553A2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 3F8478682F4A7989002553A2 /* Config.xcconfig */; };
 		E80000012B0000000000001 /* HyggeDashApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000001 /* HyggeDashApp.swift */; };
 		E80000012B0000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000002 /* ContentView.swift */; };
 		E80000012B0000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000003 /* Assets.xcassets */; };
@@ -30,6 +32,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3FA000002F500000003DFFDD /* SonosAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosAuthService.swift; sourceTree = "<group>"; };
 		3F05FDE62F1C25D9003DFFDD /* TimeWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeWidgetView.swift; sourceTree = "<group>"; };
 		3F05FDE82F1C3947003DFFDD /* WeatherWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherWidgetView.swift; sourceTree = "<group>"; };
 		3F05FDEA2F1D55FD003DFFDD /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
@@ -37,6 +40,7 @@
 		3F05FDF62F1EA220003DFFDD /* Station.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Station.swift; sourceTree = "<group>"; };
 		3F05FDF82F1EA236003DFFDD /* StationsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationsService.swift; sourceTree = "<group>"; };
 		3F05FDFA2F1EA24C003DFFDD /* StationPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationPickerView.swift; sourceTree = "<group>"; };
+		3F8478682F4A7989002553A2 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		E80000002B0000000000000 /* HyggeDash.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HyggeDash.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E80000002B0000000000001 /* HyggeDashApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyggeDashApp.swift; sourceTree = "<group>"; };
 		E80000002B0000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -84,6 +88,7 @@
 				E80000004B0000000000006 /* Services */,
 				E80000002B0000000000003 /* Assets.xcassets */,
 				E80000002B0000000000014 /* Info.plist */,
+				3F8478682F4A7989002553A2 /* Config.xcconfig */,
 				E80000002B0000000000015 /* HyggeDash.entitlements */,
 				E80000004B0000000000007 /* Preview Content */,
 				3F05FDE62F1C25D9003DFFDD /* TimeWidgetView.swift */,
@@ -125,6 +130,7 @@
 		E80000004B0000000000006 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				3FA000002F500000003DFFDD /* SonosAuthService.swift */,
 				3F05FDF82F1EA236003DFFDD /* StationsService.swift */,
 				3F05FDEE2F1D9F4B003DFFDD /* SonosWebSocketService.swift */,
 				E80000002B0000000000007 /* HomeKitManager.swift */,
@@ -202,6 +208,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E80000012B0000000000004 /* Preview Assets.xcassets in Resources */,
+				3F8478692F4A7989002553A2 /* Config.xcconfig in Resources */,
 				E80000012B0000000000003 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -231,6 +238,7 @@
 				E80000012B0000000000011 /* QuotesView.swift in Sources */,
 				E80000012B0000000000012 /* MediaControlView.swift in Sources */,
 				E80000012B0000000000013 /* SettingsView.swift in Sources */,
+				3FA000012F500000003DFFDD /* SonosAuthService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,6 +247,7 @@
 /* Begin XCBuildConfiguration section */
 		E80000006B0000000000002 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3F8478682F4A7989002553A2 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -304,6 +313,7 @@
 		};
 		E80000006B0000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3F8478682F4A7989002553A2 /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;

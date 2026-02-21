@@ -2,18 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var sonosService: SonosService
+    @ObservedObject var authService: SonosAuthService
     @Environment(\.dismiss) private var dismiss
-
-    @AppStorage("sonosServerIP") private var serverIP = "192.168.1.100"
-    @AppStorage("sonosServerPort") private var serverPort = "5005"
-
-    @State private var testingConnection = false
-    @State private var connectionStatus: ConnectionStatus?
-
-    enum ConnectionStatus {
-        case success
-        case failure(String)
-    }
 
     var body: some View {
         NavigationStack {
@@ -36,58 +26,35 @@ struct SettingsView: View {
     private var sonosSection: some View {
         Section {
             HStack {
-                Text("IP Address")
-                Spacer()
-                TextField("192.168.1.100", text: $serverIP)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 150)
-                    .keyboardType(.decimalPad)
-                    .autocorrectionDisabled()
+                Image(systemName: authService.isAuthenticated ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundColor(authService.isAuthenticated ? .green : .red)
+                Text(authService.isAuthenticated ? "Connected" : "Not Connected")
+                    .foregroundColor(authService.isAuthenticated ? .primary : .secondary)
             }
 
-            HStack {
-                Text("Port")
-                Spacer()
-                TextField("5005", text: $serverPort)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
-                    .keyboardType(.numberPad)
-            }
-
-            Button(action: testConnection) {
-                HStack {
-                    if testingConnection {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else {
-                        Image(systemName: "network")
+            if authService.isAuthenticated {
+                Button(role: .destructive) {
+                    authService.logout()
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.right.square")
+                        Text("Disconnect Sonos Account")
                     }
-                    Text("Test Connection")
                 }
-            }
-            .disabled(testingConnection)
-
-            if let status = connectionStatus {
-                HStack {
-                    switch status {
-                    case .success:
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Connection successful")
-                            .foregroundColor(.green)
-                    case .failure(let message):
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.red)
-                        Text(message)
-                            .foregroundColor(.red)
-                            .font(.caption)
+            } else {
+                Button {
+                    authService.authenticate()
+                } label: {
+                    HStack {
+                        Image(systemName: "link")
+                        Text("Connect Sonos Account")
                     }
                 }
             }
         } header: {
-            Text("Sonos Server (soco-cli-api)")
+            Text("Sonos Account")
         } footer: {
-            Text("Enter the IP address and port of your Raspberry Pi running the soco-cli REST API server.")
+            Text("Connect your Sonos account to control speakers directly from HyggeDash.")
         }
     }
 
@@ -100,9 +67,9 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
             }
 
-            Link(destination: URL(string: "https://github.com/avantrec/soco-cli")!) {
+            Link(destination: URL(string: "https://developer.sonos.com")!) {
                 HStack {
-                    Text("soco-cli Documentation")
+                    Text("Sonos Developer Documentation")
                     Spacer()
                     Image(systemName: "arrow.up.right.square")
                         .foregroundColor(.secondary)
@@ -112,44 +79,8 @@ struct SettingsView: View {
             Text("About")
         }
     }
-
-    private func testConnection() {
-        testingConnection = true
-        connectionStatus = nil
-
-        let urlString = "http://\(serverIP):\(serverPort)/speakers"
-
-        guard let url = URL(string: urlString) else {
-            connectionStatus = .failure("Invalid URL")
-            testingConnection = false
-            return
-        }
-
-        let task = URLSession.shared.dataTask(with: url) { _, response, error in
-            DispatchQueue.main.async {
-                testingConnection = false
-
-                if let error = error {
-                    connectionStatus = .failure(error.localizedDescription)
-                } else if let httpResponse = response as? HTTPURLResponse {
-                    if httpResponse.statusCode == 200 {
-                        connectionStatus = .success
-                        // Refresh speakers after successful connection test
-                        Task {
-                            await sonosService.fetchSpeakers()
-                        }
-                    } else {
-                        connectionStatus = .failure("HTTP \(httpResponse.statusCode)")
-                    }
-                } else {
-                    connectionStatus = .failure("Unknown error")
-                }
-            }
-        }
-        task.resume()
-    }
 }
 
 #Preview {
-    SettingsView(sonosService: SonosService())
+    SettingsView(sonosService: SonosService(), authService: SonosAuthService())
 }

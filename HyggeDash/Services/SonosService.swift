@@ -1,9 +1,6 @@
 import Foundation
+import Network
 import Combine
-
-struct SpeakersResponse: Codable {
-    let speakers: [String]
-}
 
 @MainActor
 class SonosService: ObservableObject {
@@ -14,300 +11,296 @@ class SonosService: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    private var refreshTimer: Timer?
     private let webSocketService = SonosWebSocketService()
-    private var webSocketCancellable: AnyCancellable?
+    private var browser: NWBrowser?
+    private var discoveredIP: String?
+    private var householdId: String?
+    private var groupId: String?
+    private var refreshTimer: Timer?
+    private var authService: SonosAuthService?
 
-    var baseURL: String {
-        let ip = UserDefaults.standard.string(forKey: "sonosServerIP") ?? "192.168.1.16"
-        let port = UserDefaults.standard.string(forKey: "sonosServerPort") ?? "8000"
-        return "http://\(ip):\(port)"
+    func configure(authService: SonosAuthService) {
+        self.authService = authService
     }
+
+    // MARK: - Discovery
 
     func fetchSpeakers() async {
         isLoading = true
         errorMessage = nil
 
-        do {
-            guard let url = URL(string: "\(baseURL)/speakers") else {
-                throw URLError(.badURL)
-            }
+        // Use Bonjour to discover Sonos speakers on the local network
+        let browser = NWBrowser(for: .bonjour(type: "_sonos._tcp", domain: nil), using: .tcp)
+        self.browser = browser
 
-            let (data, _) = try await URLSession.shared.data(from: url)
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var resumed = false
 
-            // The /speakers endpoint returns {"speakers": ["name1", "name2", ...]}
-            let response = try JSONDecoder().decode(SpeakersResponse.self, from: data)
-            
-            // Convert speaker names to SonosZone objects
-            self.zones = response.speakers.map { speakerName in
-                SonosZone(coordinator: speakerName, members: [speakerName], isPlaying: nil)
-            }
+            browser.browseResultsChangedHandler = { [weak self] results, _ in
+                Task { @MainActor [weak self] in
+                    guard let self, !resumed else { return }
 
-            // Default to "Living Room" if available, otherwise first zone
-            if selectedZone == nil {
-                if let livingRoom = zones.first(where: { $0.coordinator == "Living Room" }) {
-                    selectedZone = livingRoom
-                } else if let firstZone = zones.first {
-                    selectedZone = firstZone
+                    for result in results {
+                        if case .service(let name, _, _, _) = result.endpoint {
+                            // Resolve the service to get the IP
+                            let zone = SonosZone(coordinator: name, members: [name])
+                            if !self.zones.contains(where: { $0.coordinator == name }) {
+                                self.zones.append(zone)
+                            }
+                        }
+                    }
+
+                    // Resolve first result to get an IP for WebSocket
+                    if let first = results.first {
+                        self.resolveEndpoint(first.endpoint)
+                    }
+
+                    if self.selectedZone == nil {
+                        self.selectedZone = self.zones.first(where: { $0.coordinator == "Living Room" }) ?? self.zones.first
+                    }
+
+                    resumed = true
+                    self.isLoading = false
+                    continuation.resume()
                 }
             }
-        } catch {
-            errorMessage = "Failed to fetch speakers: \(error.localizedDescription)"
-        }
 
-        isLoading = false
-    }
-
-    func fetchPlaybackState() async {
-        guard let zone = selectedZone else { return }
-
-        do {
-            guard let url = URL(string: "\(baseURL)/\(zone.coordinator.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? zone.coordinator)/state") else {
-                throw URLError(.badURL)
+            browser.stateUpdateHandler = { [weak self] state in
+                Task { @MainActor [weak self] in
+                    if case .failed(let error) = state {
+                        self?.errorMessage = "Discovery failed: \(error.localizedDescription)"
+                        self?.isLoading = false
+                        if !resumed {
+                            resumed = true
+                            continuation.resume()
+                        }
+                    }
+                }
             }
 
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let response = try JSONDecoder().decode(SonosTrackResponse.self, from: data)
+            browser.start(queue: .main)
 
-            // The result field contains "PLAYING", "PAUSED", or "STOPPED"
-            let isPlaying = response.result == "PLAYING"
+            // Timeout after 5 seconds
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                if !resumed {
+                    resumed = true
+                    await MainActor.run {
+                        self.isLoading = false
+                        if self.zones.isEmpty {
+                            self.errorMessage = "No Sonos speakers found on the network."
+                        }
+                    }
+                    continuation.resume()
+                }
+            }
+        }
+    }
 
-            // Preserve existing track info and volume, just update isPlaying
-            let currentVolume = self.playbackState?.volume ?? 0
-            let currentTitle = self.playbackState?.title
-            let currentArtist = self.playbackState?.artist
-            let currentAlbum = self.playbackState?.album
+    private func resolveEndpoint(_ endpoint: NWEndpoint) {
+        let params = NWParameters.tcp
+        let connection = NWConnection(to: endpoint, using: params)
 
-            self.playbackState = SonosPlaybackState(
-                title: currentTitle,
-                artist: currentArtist,
-                album: currentAlbum,
+        connection.stateUpdateHandler = { [weak self] state in
+            if case .ready = state {
+                if let innerEndpoint = connection.currentPath?.remoteEndpoint,
+                   case .hostPort(let host, _) = innerEndpoint {
+                    let ip: String
+                    switch host {
+                    case .ipv4(let addr):
+                        ip = "\(addr)"
+                    case .ipv6(let addr):
+                        ip = "\(addr)"
+                    default:
+                        connection.cancel()
+                        return
+                    }
+                    Task { @MainActor [weak self] in
+                        self?.discoveredIP = ip
+                        self?.connectWebSocket()
+                    }
+                }
+                connection.cancel()
+            }
+        }
+        connection.start(queue: .main)
+    }
+
+    // MARK: - WebSocket
+
+    private func connectWebSocket() {
+        guard let ip = discoveredIP else { return }
+
+        Task {
+            guard let token = try? await authService?.refreshTokenIfNeeded() else {
+                errorMessage = "Not authenticated. Please connect your Sonos account in Settings."
+                return
+            }
+
+            webSocketService.onEvent = { [weak self] namespace, json in
+                Task { @MainActor [weak self] in
+                    self?.handleWebSocketEvent(namespace: namespace, json: json)
+                }
+            }
+
+            webSocketService.connect(to: ip, token: token)
+        }
+    }
+
+    private func handleWebSocketEvent(namespace: String, json: [String: Any]) {
+        switch namespace {
+        case "groups":
+            if let groups = json["groups"] as? [[String: Any]], let first = groups.first {
+                householdId = json["householdId"] as? String
+                groupId = first["id"] as? String
+
+                // Parse group members into zones
+                if let players = json["players"] as? [[String: Any]] {
+                    zones = players.map { player in
+                        let name = player["name"] as? String ?? "Unknown"
+                        return SonosZone(coordinator: name, members: [name])
+                    }
+                    if selectedZone == nil {
+                        selectedZone = zones.first(where: { $0.coordinator == "Living Room" }) ?? zones.first
+                    }
+                }
+
+                // Now subscribe to playback and volume
+                if let hId = householdId, let gId = groupId {
+                    webSocketService.subscribe(namespace: "playback", householdId: hId, groupId: gId)
+                    webSocketService.subscribe(namespace: "playerVolume", householdId: hId, groupId: gId)
+                }
+            }
+
+            // Handle subscription confirmation
+            if json["type"] as? String == "subscribed" {
+                // Already subscribed to groups, now get initial state
+            }
+
+        case "playback":
+            let isPlaying = (json["playbackState"] as? String) == "PLAYBACK_STATE_PLAYING"
+
+            var title: String?
+            var artist: String?
+            var album: String?
+
+            if let container = json["container"] as? [String: Any] {
+                title = container["name"] as? String
+            }
+            if let currentItem = json["currentItem"] as? [String: Any],
+               let track = currentItem["track"] as? [String: Any] {
+                title = track["name"] as? String ?? title
+                artist = track["artist"] as? [String: Any]?["name"] as? String
+                album = track["album"] as? [String: Any]?["name"] as? String
+
+                trackInfo = SonosTrackInfo(
+                    artist: artist,
+                    album: album,
+                    title: title,
+                    albumArt: track["imageUrl"] as? String,
+                    isPlaying: isPlaying
+                )
+            }
+
+            let currentVolume = playbackState?.volume ?? 0
+            playbackState = SonosPlaybackState(
+                title: title,
+                artist: artist,
+                album: album,
                 isPlaying: isPlaying,
                 volume: currentVolume
             )
 
-            // Also fetch the current volume
-            await fetchVolume()
-        } catch {
-            // Silently fail for state updates to avoid spamming errors
+        case "playerVolume":
+            if let volume = json["volume"] as? Int {
+                let current = playbackState ?? SonosPlaybackState()
+                playbackState = SonosPlaybackState(
+                    title: current.title,
+                    artist: current.artist,
+                    album: current.album,
+                    isPlaying: current.isPlaying,
+                    volume: volume
+                )
+            }
+
+        default:
+            break
         }
     }
 
-    func fetchVolume() async {
-        guard let zone = selectedZone else { return }
-
-        do {
-            guard let url = URL(string: "\(baseURL)/\(zone.coordinator.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? zone.coordinator)/group_volume") else {
-                throw URLError(.badURL)
-            }
-
-            let (data, _) = try await URLSession.shared.data(from: url)
-            
-            // Decode the generic API response
-            let response = try JSONDecoder().decode(SonosTrackResponse.self, from: data)
-            
-            // The result field contains the volume as a string
-            if let volume = Int(response.result.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                // Only update if volume actually changed to avoid UI flicker
-                guard volume != self.playbackState?.volume else { return }
-
-                // Update the volume in playback state
-                if let currentState = self.playbackState {
-                    self.playbackState = SonosPlaybackState(
-                        title: currentState.title,
-                        artist: currentState.artist,
-                        album: currentState.album,
-                        isPlaying: currentState.isPlaying,
-                        volume: volume
-                    )
-                } else {
-                    // Create a minimal playback state if one doesn't exist
-                    self.playbackState = SonosPlaybackState(volume: volume)
-                }
-            }
-        } catch {
-            // Silently fail for volume updates to avoid spamming errors
-        }
-    }
-
-    func fetchTrackInfo() async {
-        guard let zone = selectedZone else { return }
-
-        do {
-            guard let url = URL(string: "\(baseURL)/\(zone.coordinator.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? zone.coordinator)/track") else {
-                throw URLError(.badURL)
-            }
-
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let response = try JSONDecoder().decode(SonosTrackResponse.self, from: data)
-            
-            // Parse the response into track info
-            self.trackInfo = SonosTrackInfo(from: response)
-        } catch {
-            // Silently fail for track updates to avoid spamming errors
-        }
-    }
+    // MARK: - Commands
 
     func sendCommand(_ command: SonosCommand) async {
-        guard let zone = selectedZone else {
-            errorMessage = "No zone selected"
+        guard let hId = householdId, let gId = groupId else {
+            errorMessage = "No group connected"
             return
         }
 
-        let roomName = zone.coordinator.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? zone.coordinator
+        let (namespace, wsCommand) = command.webSocketCommand
 
-        var urlString: String
+        var message: [String: Any] = [
+            "namespace": namespace,
+            "command": wsCommand,
+            "householdId": hId,
+            "groupId": gId,
+        ]
 
         switch command {
         case .volumeUp:
-            // Fetch current volume, increment by 1, set via group_volume
-            await fetchVolume()
-            let currentVolume = playbackState?.volume ?? 20
-            let newVolume = min(100, currentVolume + 1)
-            urlString = "\(baseURL)/\(roomName)/group_volume/\(newVolume)"
+            message["volumeDelta"] = 2
         case .volumeDown:
-            // Fetch current volume, decrement by 1, set via group_volume
-            await fetchVolume()
-            let currentVolume = playbackState?.volume ?? 20
-            let newVolume = max(0, currentVolume - 1)
-            urlString = "\(baseURL)/\(roomName)/group_volume/\(newVolume)"
+            message["volumeDelta"] = -2
         default:
-            urlString = "\(baseURL)/\(roomName)/\(command.endpoint)"
+            break
         }
 
-        do {
-            guard let url = URL(string: urlString) else {
-                throw URLError(.badURL)
-            }
-
-            let (_, response) = try await URLSession.shared.data(from: url)
-
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
-                errorMessage = "Command failed with status \(httpResponse.statusCode)"
-            }
-
-            // Refresh playback state after command (track info comes via WebSocket)
-            await fetchPlaybackState()
-        } catch {
-            errorMessage = "Failed to send command: \(error.localizedDescription)"
-        }
+        webSocketService.send(message)
     }
 
     func setVolume(_ volume: Int) async {
-        guard let zone = selectedZone else { return }
+        guard let hId = householdId, let gId = groupId else { return }
 
-        let roomName = zone.coordinator.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? zone.coordinator
-        let clampedVolume = max(0, min(100, volume))
-
-        do {
-            guard let url = URL(string: "\(baseURL)/\(roomName)/group_volume/\(clampedVolume)") else {
-                throw URLError(.badURL)
-            }
-
-            let (_, _) = try await URLSession.shared.data(from: url)
-
-            // Fetch the actual group volume to confirm the change
-            await fetchVolume()
-        } catch {
-            errorMessage = "Failed to set volume: \(error.localizedDescription)"
-        }
+        let clamped = max(0, min(100, volume))
+        webSocketService.send([
+            "namespace": "playerVolume",
+            "command": "setVolume",
+            "householdId": hId,
+            "groupId": gId,
+            "volume": clamped,
+        ])
     }
 
     func setGroupVolume(to targetVolume: Int) async {
-        guard let zone = selectedZone else { return }
-
-        let roomName = zone.coordinator.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? zone.coordinator
-        let clampedTarget = max(0, min(100, targetVolume))
-
-        do {
-            guard let url = URL(string: "\(baseURL)/\(roomName)/group_volume/\(clampedTarget)") else {
-                throw URLError(.badURL)
-            }
-
-            let (_, _) = try await URLSession.shared.data(from: url)
-
-            // Don't immediately fetch - let polling handle it to avoid race conditions
-        } catch {
-            errorMessage = "Failed to set volume: \(error.localizedDescription)"
-        }
+        await setVolume(targetVolume)
     }
 
-    func playStation(_ station: Station) async {
-        guard let zone = selectedZone else {
-            errorMessage = "No zone selected"
-            return
-        }
-
-        let roomName = zone.coordinator.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? zone.coordinator
-
-        // URL-encode the station URL - keep slashes and colons intact as the API expects them
-        guard let encodedStationURL = station.url.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
-            errorMessage = "Invalid station URL"
-            return
-        }
-
-        print("Playing station: \(station.name) with URL: \(station.url)")
-        print("Encoded URL: \(encodedStationURL)")
-        print("Full sharelink URL: \(baseURL)/\(roomName)/sharelink/\(encodedStationURL)")
-
-        do {
-            // Clear the queue first
-            guard let clearURL = URL(string: "\(baseURL)/\(roomName)/clear_queue") else {
-                throw URLError(.badURL)
-            }
-            let (_, _) = try await URLSession.shared.data(from: clearURL)
-
-            // Add the station via sharelink
-            guard let sharelinkURL = URL(string: "\(baseURL)/\(roomName)/sharelink/\(encodedStationURL)") else {
-                throw URLError(.badURL)
-            }
-            print("Sharelink URL: \(sharelinkURL)")
-            let (_, response) = try await URLSession.shared.data(from: sharelinkURL)
-
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
-                errorMessage = "Failed to play station (status \(httpResponse.statusCode))"
-                return
-            }
-
-            // Start playback from the queue (play_from_queue/1 plays the first track)
-            guard let playURL = URL(string: "\(baseURL)/\(roomName)/play_from_queue/1") else {
-                throw URLError(.badURL)
-            }
-            print("Play from queue URL: \(playURL)")
-            let (_, _) = try await URLSession.shared.data(from: playURL)
-
-            // Refresh playback state
-            await fetchPlaybackState()
-        } catch {
-            errorMessage = "Failed to play station: \(error.localizedDescription)"
-        }
-    }
+    // MARK: - Polling
 
     func startPolling() {
-        // Stop any existing polling
         stopPolling()
 
-        // Poll playback state every 5 seconds (for volume updates)
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                await self?.fetchPlaybackState()
-            }
+        // Subscribe to groups namespace to bootstrap
+        if let hId = householdId {
+            webSocketService.subscribe(namespace: "groups", householdId: hId)
+        } else if discoveredIP != nil {
+            // If we have IP but no household yet, try connecting WS
+            connectWebSocket()
         }
 
-        // Subscribe to WebSocket for track info updates
-        webSocketCancellable = webSocketService.$trackInfo
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newTrackInfo in
-                self?.trackInfo = newTrackInfo
+        // Light polling as fallback — WebSocket events are primary
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if !self.webSocketService.isConnected, self.discoveredIP != nil {
+                    self.connectWebSocket()
+                }
             }
-        webSocketService.connect()
+        }
     }
 
     func stopPolling() {
         refreshTimer?.invalidate()
         refreshTimer = nil
-        webSocketCancellable?.cancel()
-        webSocketCancellable = nil
         webSocketService.disconnect()
     }
 }

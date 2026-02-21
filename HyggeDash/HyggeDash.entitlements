@@ -4,5 +4,11 @@
 <dict>
 	<key>com.apple.developer.homekit</key>
 	<true/>
+	<key>com.apple.developer.networking.multicast</key>
+	<true/>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:hyggehousehold.web.app</string>
+	</array>
 </dict>
 </plist>

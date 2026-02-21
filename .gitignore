@@ -1,3 +1,6 @@
+# Secrets — never commit
+HyggeDash/Config.xcconfig
+
 # macOS
 .DS_Store
 .DS_Store?

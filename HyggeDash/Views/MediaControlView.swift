@@ -98,7 +98,7 @@ struct MediaControlView: View {
                 .foregroundColor(.secondary)
             Text("No Speakers Found")
                 .font(.headline)
-            Text("Check that your Raspberry Pi server is running and configured in Settings.")
+            Text("Check that your Sonos account is connected in Settings and speakers are on your network.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -138,23 +138,6 @@ struct MediaControlView: View {
                         .lineLimit(1)
                 }
                 
-                // Show playback progress
-                if let elapsed = trackInfo.elapsed, let duration = trackInfo.duration {
-                    HStack(spacing: 8) {
-                        Text(elapsed)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .monospacedDigit()
-                        
-                        Spacer()
-                        
-                        Text(duration)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .monospacedDigit()
-                    }
-                    .padding(.top, 4)
-                }
             } else if let state = sonosService.playbackState {
                 // Fallback to playback state if track info isn't available yet
                 if let title = state.title, !title.isEmpty {

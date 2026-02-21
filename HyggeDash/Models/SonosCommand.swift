@@ -9,17 +9,6 @@ enum SonosCommand: String {
     case volumeUp
     case volumeDown
 
-    var endpoint: String {
-        switch self {
-        case .play: return "play"
-        case .pause: return "pause"
-        case .pausePlay: return "pauseplay"
-        case .next: return "next"
-        case .previous: return "previous"
-        case .volumeUp, .volumeDown: return "volume"
-        }
-    }
-
     var systemImage: String {
         switch self {
         case .play: return "play.fill"
@@ -28,6 +17,19 @@ enum SonosCommand: String {
         case .previous: return "backward.fill"
         case .volumeUp: return "speaker.plus.fill"
         case .volumeDown: return "speaker.minus.fill"
+        }
+    }
+
+    /// Returns (namespace, command) for Sonos WebSocket API
+    var webSocketCommand: (String, String) {
+        switch self {
+        case .play: return ("playback", "play")
+        case .pause: return ("playback", "pause")
+        case .pausePlay: return ("playback", "togglePlayPause")
+        case .next: return ("playback", "skipToNextTrack")
+        case .previous: return ("playback", "skipToPreviousTrack")
+        case .volumeUp: return ("playerVolume", "setRelativeVolume")
+        case .volumeDown: return ("playerVolume", "setRelativeVolume")
         }
     }
 }
@@ -91,32 +93,11 @@ struct SonosPlaybackState: Codable {
     }
 }
 
-struct SonosTrackResponse: Codable {
-    let speaker: String
-    let action: String
-    let args: [String]
-    let exitCode: Int
-    let result: String
-    let errorMsg: String
-    
-    enum CodingKeys: String, CodingKey {
-        case speaker
-        case action
-        case args
-        case exitCode = "exit_code"
-        case result
-        case errorMsg = "error_msg"
-    }
-}
-
 struct SonosTrackInfo: Codable {
     let artist: String?
     let album: String?
     let title: String?
     let albumArt: String?
-    let playlistPosition: Int?
-    let duration: String?
-    let elapsed: String?
     let isPlaying: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -125,6 +106,14 @@ struct SonosTrackInfo: Codable {
         case title
         case albumArt = "album_art"
         case playbackState = "playback_state"
+    }
+
+    init(artist: String? = nil, album: String? = nil, title: String? = nil, albumArt: String? = nil, isPlaying: Bool = false) {
+        self.artist = artist
+        self.album = album
+        self.title = title
+        self.albumArt = albumArt
+        self.isPlaying = isPlaying
     }
 
     init(from decoder: Decoder) throws {
@@ -136,11 +125,6 @@ struct SonosTrackInfo: Codable {
 
         let playbackState = try container.decodeIfPresent(String.self, forKey: .playbackState)
         isPlaying = playbackState == "PLAYING"
-
-        // These aren't in the WebSocket payload
-        playlistPosition = nil
-        duration = nil
-        elapsed = nil
     }
 
     func encode(to encoder: Encoder) throws {
@@ -151,72 +135,4 @@ struct SonosTrackInfo: Codable {
         try container.encodeIfPresent(albumArt, forKey: .albumArt)
         try container.encode(isPlaying ? "PLAYING" : "PAUSED", forKey: .playbackState)
     }
-
-    init(from response: SonosTrackResponse) {
-        // Parse the result string to extract track information
-        let result = response.result
-
-        self.isPlaying = result.contains("Playback is in progress")
-        self.albumArt = nil
-
-        // Split into lines for easier parsing
-        let lines = result.components(separatedBy: .newlines)
-
-        // Extract artist
-        if let artistLine = lines.first(where: { $0.contains("Artist:") }) {
-            self.artist = artistLine
-                .replacingOccurrences(of: "Artist:", with: "")
-                .trimmingCharacters(in: .whitespaces)
-        } else {
-            self.artist = nil
-        }
-
-        // Extract album
-        if let albumLine = lines.first(where: { $0.contains("Album:") }) {
-            self.album = albumLine
-                .replacingOccurrences(of: "Album:", with: "")
-                .trimmingCharacters(in: .whitespaces)
-        } else {
-            self.album = nil
-        }
-
-        // Extract title
-        if let titleLine = lines.first(where: { $0.contains("Title:") }) {
-            self.title = titleLine
-                .replacingOccurrences(of: "Title:", with: "")
-                .trimmingCharacters(in: .whitespaces)
-        } else {
-            self.title = nil
-        }
-
-        // Extract playlist position
-        if let positionLine = lines.first(where: { $0.contains("Playlist Position:") }) {
-            let positionStr = positionLine
-                .replacingOccurrences(of: "Playlist Position:", with: "")
-                .trimmingCharacters(in: .whitespaces)
-            self.playlistPosition = Int(positionStr)
-        } else {
-            self.playlistPosition = nil
-        }
-
-        // Extract duration
-        if let durationLine = lines.first(where: { $0.contains("Duration:") }) {
-            self.duration = durationLine
-                .replacingOccurrences(of: "Duration:", with: "")
-                .trimmingCharacters(in: .whitespaces)
-        } else {
-            self.duration = nil
-        }
-
-        // Extract elapsed time
-        if let elapsedLine = lines.first(where: { $0.contains("Elapsed:") }) {
-            self.elapsed = elapsedLine
-                .replacingOccurrences(of: "Elapsed:", with: "")
-                .trimmingCharacters(in: .whitespaces)
-        } else {
-            self.elapsed = nil
-        }
-    }
 }
-
-
