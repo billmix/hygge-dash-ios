@@ -190,8 +190,8 @@ class SonosService: ObservableObject {
             if let currentItem = json["currentItem"] as? [String: Any],
                let track = currentItem["track"] as? [String: Any] {
                 title = track["name"] as? String ?? title
-                artist = track["artist"] as? [String: Any]?["name"] as? String
-                album = track["album"] as? [String: Any]?["name"] as? String
+                artist = (track["artist"] as? [String: Any])?["name"] as? String
+                album = (track["album"] as? [String: Any])?["name"] as? String
 
                 trackInfo = SonosTrackInfo(
                     artist: artist,
