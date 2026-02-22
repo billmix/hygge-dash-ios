@@ -38,9 +38,14 @@ struct MediaControlView: View {
         .background(HyggeTheme.cardBackground)
         .cornerRadius(20)
         .task {
+            // Retry once if first attempt fails (transient TLS errors)
             await sonosService.fetchSpeakers()
-            await sonosService.fetchPlaybackState()
+            if sonosService.zones.isEmpty {
+                try? await Task.sleep(for: .seconds(2))
+                await sonosService.fetchSpeakers()
+            }
             await sonosService.fetchFavorites()
+            await sonosService.fetchPlaybackState()
             sonosService.startPolling()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
@@ -102,7 +107,7 @@ struct MediaControlView: View {
 
     private var noZonesView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "hifispeaker.slash")
+            Image(systemName: "speaker.slash")
                 .font(.system(size: 48))
                 .foregroundColor(HyggeTheme.textSecondary)
             Text("No Speakers Found")
