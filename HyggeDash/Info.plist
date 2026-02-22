@@ -8,6 +8,8 @@
 	<string>$(SONOS_CLIENT_SECRET)</string>
 	<key>SonosRedirectURI</key>
 	<string>$(SONOS_REDIRECT_URI)</string>
+	<key>SpotifyClientID</key>
+	<string>$(SPOTIFY_CLIENT_ID)</string>
 	<key>OpenWeatherMapAPIKey</key>
 	<string>e9804032b7ae07976cc1a4333e99813f</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

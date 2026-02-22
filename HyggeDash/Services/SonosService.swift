@@ -13,12 +13,14 @@ class SonosService: ObservableObject {
 
     private let baseURL = "https://api.ws.sonos.com/control/api/v1"
     private var authService: SonosAuthService?
+    private(set) var spotifyService: SpotifyService?
     private var householdId: String?
     private var groupId: String?
     private var refreshTimer: Timer?
 
-    func configure(authService: SonosAuthService) {
+    func configure(authService: SonosAuthService, spotifyService: SpotifyService? = nil) {
         self.authService = authService
+        self.spotifyService = spotifyService
     }
 
     // MARK: - API Helpers
@@ -258,6 +260,30 @@ class SonosService: ObservableObject {
     // MARK: - Commands
 
     func sendCommand(_ command: SonosCommand) async {
+        // Route skip/prev through Spotify if authenticated (try Spotify first, fall back to Sonos)
+        if let spotify = spotifyService, spotify.isAuthenticated,
+           (command == .next || command == .previous) {
+            let cmdName = command == .next ? "next" : "previous"
+            print("🔊 [SONOS] Trying skip \(cmdName) via Spotify API first")
+
+            // Refresh devices to find active speaker
+            await spotify.fetchDevices()
+            let hasActiveDevice = spotify.availableDevices.contains { $0.isActive }
+
+            if hasActiveDevice {
+                if command == .next {
+                    await spotify.skipNext()
+                } else {
+                    await spotify.skipPrevious()
+                }
+                try? await Task.sleep(for: .milliseconds(500))
+                await fetchPlaybackState()
+                return
+            } else {
+                print("🔊 [SONOS] No active Spotify device, falling back to Sonos skip")
+            }
+        }
+
         guard let gId = groupId else {
             errorMessage = "No group selected"
             print("🔊 [SONOS] Cannot send command: no group selected")
@@ -278,6 +304,26 @@ class SonosService: ObservableObject {
             if response.statusCode >= 400 {
                 let responseBody = String(data: data, encoding: .utf8) ?? "nil"
                 print("🔊 [SONOS] Command error body: \(responseBody)")
+
+                // Parse Sonos error for user-friendly messages
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let errorCode = json["errorCode"] as? String {
+                    switch errorCode {
+                    case "ERROR_SKIP_LIMIT_REACHED":
+                        errorMessage = "Skip limit reached (Spotify restriction)"
+                    case "ERROR_COMMAND_FAILED":
+                        errorMessage = "Command not available right now"
+                    default:
+                        errorMessage = errorCode.replacingOccurrences(of: "ERROR_", with: "")
+                            .replacingOccurrences(of: "_", with: " ").capitalized
+                    }
+                    // Clear error after 3 seconds
+                    Task {
+                        try? await Task.sleep(for: .seconds(3))
+                        if self.errorMessage != nil { self.errorMessage = nil }
+                    }
+                    return
+                }
             }
 
             // Refresh state after command
@@ -350,8 +396,11 @@ class SonosService: ObservableObject {
     }
 
     func playFavorite(_ favorite: SonosFavorite) async {
+        print("🔊 [FAVS] playFavorite called for: \(favorite.name)")
+        print("🔊 [FAVS] groupId: \(groupId ?? "NIL")")
         guard let gId = groupId else {
             errorMessage = "No group selected"
+            print("🔊 [FAVS] ❌ No group selected, aborting")
             return
         }
 
@@ -383,8 +432,13 @@ class SonosService: ObservableObject {
     // MARK: - Station Playback
 
     func playStation(_ station: Station) async {
+        print("🔊 [STATION] playStation called for: \(station.name)")
+        print("🔊 [STATION] groupId: \(groupId ?? "NIL"), householdId: \(householdId ?? "NIL")")
+        print("🔊 [STATION] selectedZone: \(selectedZone?.coordinator ?? "NIL")")
+
         guard let gId = groupId else {
             errorMessage = "No group selected"
+            print("🔊 [STATION] ❌ No group selected, aborting")
             return
         }
 
@@ -394,7 +448,13 @@ class SonosService: ObservableObject {
         // Detect if this is a music service share link (Spotify, Apple Music, etc.)
         if let shareLink = ShareLinkParser.parse(station.url) {
             print("🔊 [STATION] Detected \(shareLink.service) \(shareLink.type): \(shareLink.objectId)")
-            await playViaLoadContent(shareLink: shareLink, groupId: gId)
+
+            if shareLink.service == "Spotify" {
+                await playSpotifyContent(shareLink: shareLink, groupId: gId)
+            } else {
+                // Other services: try Sonos loadContent
+                await playViaLoadContent(shareLink: shareLink, groupId: gId)
+            }
         } else {
             // Direct stream URL (internet radio, etc.)
             print("🔊 [STATION] Treating as direct stream URL")
@@ -406,24 +466,54 @@ class SonosService: ObservableObject {
         await fetchPlaybackState()
     }
 
-    /// Play a music service share link via loadContent
-    private func playViaLoadContent(shareLink: ShareLinkInfo, groupId gId: String) async {
-        do {
-            // First, look up the music service account to get the right serviceId/accountId
-            let serviceAccounts = await fetchMusicServiceAccounts()
-            let accountId = serviceAccounts.first(where: {
-                $0.service.lowercased().contains(shareLink.service.lowercased())
-            })?.accountId
+    /// Play Spotify content: try Spotify Connect first, fall back to Sonos loadContent+play
+    private func playSpotifyContent(shareLink: ShareLinkInfo, groupId gId: String) async {
+        // Strategy 1: Try Spotify Connect API (if authenticated and devices available)
+        if let spotify = spotifyService, spotify.isAuthenticated {
+            await spotify.fetchDevices()
 
-            var idObject: [String: Any] = [
+            let speakerName = selectedZone?.coordinator ?? ""
+            let device = spotify.findSonosDevice(named: speakerName)
+                ?? spotify.availableDevices.first
+
+            if let device {
+                print("🔊 [STATION] Playing via Spotify Connect on \(device.name)")
+                await spotify.play(uri: shareLink.objectId, deviceId: device.id)
+                return
+            }
+            print("🔊 [STATION] No Spotify Connect devices, falling back to Sonos API")
+        }
+
+        // Strategy 2: Sonos loadContent + explicit play (starts Spotify on the speaker)
+        await playViaLoadContent(shareLink: shareLink, groupId: gId)
+    }
+
+    /// Play a music service share link — tries multiple Sonos Cloud API approaches
+    private func playViaLoadContent(shareLink: ShareLinkInfo, groupId gId: String) async {
+        // Approach 1: Try all known service IDs with /playback/content
+        let allServiceIds = [shareLink.serviceId] + shareLink.alternativeServiceIds
+        for serviceId in allServiceIds {
+            let success = await tryLoadContent(shareLink: shareLink, serviceId: serviceId, groupId: gId)
+            if success { return }
+        }
+
+        // Approach 2: Try matching against Sonos Favorites
+        if await tryMatchFavorite(shareLink: shareLink, groupId: gId) {
+            return
+        }
+
+        print("🔊 [STATION] ❌ All approaches failed for \(shareLink.objectId)")
+        errorMessage = "Could not play \(shareLink.service) link. Try adding it as a Sonos Favorite first."
+    }
+
+    /// Try loading content via /playback/content endpoint
+    private func tryLoadContent(shareLink: ShareLinkInfo, serviceId: String, groupId gId: String) async -> Bool {
+        do {
+            let idObject: [String: Any] = [
                 "objectId": shareLink.objectId,
-                "serviceId": shareLink.serviceId,
+                "serviceId": serviceId,
                 "_objectType": "universalMusicObjectId",
             ]
-            if let accountId {
-                idObject["accountId"] = accountId
-                print("🔊 [STATION] Found account ID: \(accountId) for \(shareLink.service)")
-            }
 
             let body: [String: Any] = [
                 "type": shareLink.type,
@@ -431,7 +521,8 @@ class SonosService: ObservableObject {
                 "playbackAction": "PLAY",
             ]
 
-            print("🔊 [STATION] loadContent body: \(body)")
+            print("🔊 [STATION] Trying /playback/content with serviceId=\(serviceId)")
+            print("🔊 [STATION] Body: \(body)")
 
             let (data, response) = try await authorizedRequest(
                 url: URL(string: "\(baseURL)/groups/\(gId)/playback/content")!,
@@ -440,40 +531,63 @@ class SonosService: ObservableObject {
             )
 
             let responseBody = String(data: data, encoding: .utf8) ?? "nil"
-            print("🔊 [STATION] loadContent response: \(response.statusCode)")
-            print("🔊 [STATION] loadContent body: \(responseBody)")
+            print("🔊 [STATION] Response \(response.statusCode): \(responseBody)")
 
-            if response.statusCode >= 400 {
-                print("🔊 [STATION] ❌ loadContent failed, trying alternative serviceId...")
-                // Try with alternative service IDs (Spotify has multiple: 2311, 3079, 12)
-                for altServiceId in shareLink.alternativeServiceIds {
-                    var altIdObject = idObject
-                    altIdObject["serviceId"] = altServiceId
-                    let altBody: [String: Any] = [
-                        "type": shareLink.type,
-                        "id": altIdObject,
-                        "playbackAction": "PLAY",
-                    ]
+            if response.statusCode == 200 {
+                // 200 with {} might mean "accepted but no-op". Check if playback actually started.
+                try await Task.sleep(for: .seconds(2))
+                await fetchPlaybackState()
 
-                    let (altData, altResponse) = try await authorizedRequest(
-                        url: URL(string: "\(baseURL)/groups/\(gId)/playback/content")!,
+                if playbackState?.isPlaying == true {
+                    print("🔊 [STATION] ✅ Playback started with serviceId=\(serviceId)")
+                    return true
+                } else {
+                    // Try sending an explicit play command
+                    print("🔊 [STATION] Content loaded but not playing, sending play command...")
+                    let (_, playResponse) = try await authorizedRequest(
+                        url: URL(string: "\(baseURL)/groups/\(gId)/playback/play")!,
                         method: "POST",
-                        body: altBody
+                        body: [:]
                     )
-                    print("🔊 [STATION] Alt serviceId \(altServiceId) response: \(altResponse.statusCode)")
-                    print("🔊 [STATION] Alt body: \(String(data: altData, encoding: .utf8) ?? "nil")")
+                    print("🔊 [STATION] Play command response: \(playResponse.statusCode)")
 
-                    if altResponse.statusCode < 400 {
-                        print("🔊 [STATION] ✅ Success with serviceId \(altServiceId)")
-                        return
+                    try await Task.sleep(for: .seconds(2))
+                    await fetchPlaybackState()
+
+                    if playbackState?.isPlaying == true {
+                        print("🔊 [STATION] ✅ Playback started after explicit play")
+                        return true
                     }
+                    print("🔊 [STATION] ⚠️ Still not playing with serviceId=\(serviceId)")
                 }
-                errorMessage = "Failed to play content: \(responseBody)"
             }
+
+            return false
         } catch {
-            print("🔊 [STATION] ❌ loadContent error: \(error)")
-            errorMessage = "Failed to play: \(error.localizedDescription)"
+            print("🔊 [STATION] ❌ Error with serviceId=\(serviceId): \(error)")
+            return false
         }
+    }
+
+    /// Try to match the share link against existing Sonos Favorites and play via that
+    private func tryMatchFavorite(shareLink: ShareLinkInfo, groupId gId: String) async -> Bool {
+        // Make sure favorites are loaded
+        if favorites.isEmpty {
+            await fetchFavorites()
+        }
+
+        // Try to find a matching favorite by name or URL substring
+        // Spotify playlist IDs often appear in favorite metadata
+        let spotifyId = shareLink.objectId.components(separatedBy: ":").last ?? ""
+        print("🔊 [STATION] Looking for favorite matching: \(spotifyId)")
+
+        // We can't match by URL since favorites don't expose the underlying URL.
+        // But we can list them for the user to see.
+        if !favorites.isEmpty {
+            print("🔊 [STATION] Available favorites: \(favorites.map { $0.name })")
+        }
+
+        return false
     }
 
     /// Play a direct stream URL via playbackSession
@@ -516,40 +630,6 @@ class SonosService: ObservableObject {
         } catch {
             print("🔊 [STATION] ❌ Stream error: \(error)")
             errorMessage = "Failed to play stream: \(error.localizedDescription)"
-        }
-    }
-
-    // MARK: - Music Service Accounts
-
-    private struct MusicServiceAccount {
-        let service: String
-        let accountId: String
-        let serviceId: String
-    }
-
-    private func fetchMusicServiceAccounts() async -> [MusicServiceAccount] {
-        guard let hId = householdId else { return [] }
-
-        do {
-            let (data, _) = try await authorizedRequest(
-                url: URL(string: "\(baseURL)/households/\(hId)/musicServiceAccounts")!
-            )
-
-            let responseStr = String(data: data, encoding: .utf8) ?? "nil"
-            print("🔊 [STATION] Music service accounts: \(responseStr.prefix(1000))")
-
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let accounts = json["accounts"] as? [[String: Any]] else { return [] }
-
-            return accounts.compactMap { account in
-                guard let service = (account["service"] as? [String: Any])?["name"] as? String,
-                      let accountId = account["id"] as? String else { return nil }
-                let serviceId = (account["service"] as? [String: Any])?["id"] as? String ?? ""
-                return MusicServiceAccount(service: service, accountId: accountId, serviceId: serviceId)
-            }
-        } catch {
-            print("🔊 [STATION] Failed to fetch music service accounts: \(error)")
-            return []
         }
     }
 

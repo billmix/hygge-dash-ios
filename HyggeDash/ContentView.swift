@@ -4,6 +4,7 @@ struct ContentView: View {
     @StateObject private var homeKitManager = HomeKitManager()
     @StateObject private var sonosService = SonosService()
     @StateObject private var sonosAuthService = SonosAuthService()
+    @StateObject private var spotifyService = SpotifyService()
     @StateObject private var quotesService = QuotesService()
     @StateObject private var weatherService = WeatherService()
 
@@ -65,10 +66,10 @@ struct ContentView: View {
         .onAppear {
             homeKitManager.startHomeKit()
             weatherService.startWeatherUpdates()
-            sonosService.configure(authService: sonosAuthService)
+            sonosService.configure(authService: sonosAuthService, spotifyService: spotifyService)
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(sonosService: sonosService, authService: sonosAuthService)
+            SettingsView(sonosService: sonosService, authService: sonosAuthService, spotifyService: spotifyService)
         }
     }
 

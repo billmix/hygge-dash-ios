@@ -9,52 +9,32 @@ struct MediaControlView: View {
     @State private var isSliderDragging = false
 
     var body: some View {
-        GeometryReader { geo in
-            let isLandscape = geo.size.width > geo.size.height
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader
 
-            VStack(alignment: .leading, spacing: 12) {
-                sectionHeader
-
-                if sonosService.isLoading && sonosService.zones.isEmpty {
-                    loadingView
-                } else if sonosService.zones.isEmpty {
-                    noZonesView
-                } else if isLandscape {
-                    // Landscape: player left, library right
-                    HStack(alignment: .top, spacing: 16) {
-                        ScrollView {
-                            VStack(spacing: 16) {
-                                nowPlayingSection
-                                controlsSection
-                                volumeSection
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-
+            if sonosService.isLoading && sonosService.zones.isEmpty {
+                loadingView
+            } else if sonosService.zones.isEmpty {
+                noZonesView
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        nowPlayingSection
+                        controlsSection
+                        volumeSection
                         librarySection
-                            .frame(maxWidth: .infinity)
                     }
-                } else {
-                    // Portrait: player on top, library below
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            nowPlayingSection
-                            controlsSection
-                            volumeSection
-                            librarySection
-                        }
-                    }
-                }
-
-                if let error = sonosService.errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundColor(HyggeTheme.destructive)
                 }
             }
-            .padding()
+
+            if let error = sonosService.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(HyggeTheme.destructive)
+            }
         }
-        .frame(maxHeight: .infinity)
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(HyggeTheme.cardBackground)
         .cornerRadius(20)
         .task {
@@ -270,6 +250,7 @@ struct MediaControlView: View {
 
     private func libraryFavoriteRow(_ favorite: SonosFavorite) -> some View {
         Button {
+            print("🎵 [UI] Tapped favorite: \(favorite.name)")
             Task {
                 await sonosService.playFavorite(favorite)
             }
@@ -324,6 +305,7 @@ struct MediaControlView: View {
 
     private func libraryStationRow(_ station: Station) -> some View {
         Button {
+            print("🎵 [UI] Tapped station: \(station.name) — url: \(station.url)")
             Task {
                 await sonosService.playStation(station)
             }
