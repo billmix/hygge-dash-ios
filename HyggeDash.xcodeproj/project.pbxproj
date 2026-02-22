@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -16,6 +16,7 @@
 		3F05FDFB2F1EA24C003DFFDD /* StationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDFA2F1EA24C003DFFDD /* StationPickerView.swift */; };
 		3F84786F2F4ABA57002553A2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F84786E2F4ABA57002553A2 /* Theme.swift */; };
 		3F8478712F4ABE3D002553A2 /* ShareLinkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */; };
+		3F8478802F4AC077002553A2 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3F8478762F4AC077002553A2 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3FA000012F500000003DFFDD /* SonosAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA000002F500000003DFFDD /* SonosAuthService.swift */; };
 		E80000012B0000000000001 /* HyggeDashApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000001 /* HyggeDashApp.swift */; };
 		E80000012B0000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000002 /* ContentView.swift */; };
@@ -32,6 +33,30 @@
 		E80000012B0000000000013 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000013 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		3F84787E2F4AC077002553A2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E80000007B0000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3F8478752F4AC077002553A2;
+			remoteInfo = ShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3F8478852F4AC077002553A2 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3F8478802F4AC077002553A2 /* ShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		3F05FDE62F1C25D9003DFFDD /* TimeWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeWidgetView.swift; sourceTree = "<group>"; };
 		3F05FDE82F1C3947003DFFDD /* WeatherWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherWidgetView.swift; sourceTree = "<group>"; };
@@ -43,6 +68,7 @@
 		3F8478682F4A7989002553A2 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		3F84786E2F4ABA57002553A2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkParser.swift; sourceTree = "<group>"; };
+		3F8478762F4AC077002553A2 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3FA000002F500000003DFFDD /* SonosAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosAuthService.swift; sourceTree = "<group>"; };
 		E80000002B0000000000000 /* HyggeDash.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HyggeDash.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E80000002B0000000000001 /* HyggeDashApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyggeDashApp.swift; sourceTree = "<group>"; };
@@ -62,7 +88,29 @@
 		E80000002B0000000000015 /* HyggeDash.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HyggeDash.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3F8478902F4AC077002553A2 /* Exceptions for "ShareExtension" folder in "ShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				ShareExtension.entitlements,
+			);
+			target = 3F8478752F4AC077002553A2 /* ShareExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3F8478772F4AC077002553A2 /* ShareExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (3F8478902F4AC077002553A2 /* Exceptions for "ShareExtension" folder in "ShareExtension" target */, ); explicitFileTypes = {}; explicitFolders = (); path = ShareExtension; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
+		3F8478732F4AC077002553A2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E80000003B0000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -77,6 +125,7 @@
 			isa = PBXGroup;
 			children = (
 				E80000004B0000000000002 /* HyggeDash */,
+				3F8478772F4AC077002553A2 /* ShareExtension */,
 				E80000004B0000000000003 /* Products */,
 				3F84786E2F4ABA57002553A2 /* Theme.swift */,
 				3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */,
@@ -105,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				E80000002B0000000000000 /* HyggeDash.app */,
+				3F8478762F4AC077002553A2 /* ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -157,6 +207,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3F8478752F4AC077002553A2 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3F8478822F4AC077002553A2 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				3F8478722F4AC077002553A2 /* Sources */,
+				3F8478732F4AC077002553A2 /* Frameworks */,
+				3F8478742F4AC077002553A2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3F8478772F4AC077002553A2 /* ShareExtension */,
+			);
+			name = ShareExtension;
+			packageProductDependencies = (
+			);
+			productName = ShareExtension;
+			productReference = 3F8478762F4AC077002553A2 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		E80000005B0000000000001 /* HyggeDash */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E80000006B0000000000003 /* Build configuration list for PBXNativeTarget "HyggeDash" */;
@@ -164,10 +236,12 @@
 				E80000005B0000000000002 /* Sources */,
 				E80000003B0000000000001 /* Frameworks */,
 				E80000005B0000000000003 /* Resources */,
+				3F8478852F4AC077002553A2 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3F84787F2F4AC077002553A2 /* PBXTargetDependency */,
 			);
 			name = HyggeDash;
 			productName = HyggeDash;
@@ -181,9 +255,13 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1500;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					3F8478752F4AC077002553A2 = {
+						CreatedOnToolsVersion = 26.2;
+						LastSwiftMigration = 2620;
+					};
 					E80000005B0000000000001 = {
 						CreatedOnToolsVersion = 15.0;
 					};
@@ -203,11 +281,19 @@
 			projectRoot = "";
 			targets = (
 				E80000005B0000000000001 /* HyggeDash */,
+				3F8478752F4AC077002553A2 /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		3F8478742F4AC077002553A2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E80000005B0000000000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -220,6 +306,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3F8478722F4AC077002553A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E80000005B0000000000002 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -250,7 +343,74 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		3F84787F2F4AC077002553A2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3F8478752F4AC077002553A2 /* ShareExtension */;
+			targetProxy = 3F84787E2F4AC077002553A2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		3F8478832F4AC077002553A2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T797L7ZU53;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyggedash.app.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3F8478842F4AC077002553A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T797L7ZU53;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyggedash.app.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		E80000006B0000000000002 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 3F8478682F4A7989002553A2 /* Config.xcconfig */;
@@ -447,6 +607,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3F8478822F4AC077002553A2 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3F8478832F4AC077002553A2 /* Debug */,
+				3F8478842F4AC077002553A2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E80000006B0000000000001 /* Build configuration list for PBXProject "HyggeDash" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
