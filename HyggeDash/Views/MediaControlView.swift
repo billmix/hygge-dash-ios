@@ -45,6 +45,9 @@ struct MediaControlView: View {
             await sonosService.fetchPlaybackState()
             sonosService.startPolling()
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            stationsService.reload() // Pick up any stations added by Share Extension
+        }
         .onDisappear {
             sonosService.stopPolling()
         }
