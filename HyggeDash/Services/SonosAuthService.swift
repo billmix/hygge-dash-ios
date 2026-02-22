@@ -47,6 +47,9 @@ class SonosAuthService: NSObject, ObservableObject {
 
         guard let url = components.url else { return }
 
+        print("🎵 Sonos auth URL: \(url.absoluteString)")
+        print("🎵 clientId: \(clientId), redirectURI: \(redirectURI)")
+
         let session = ASWebAuthenticationSession(
             url: url,
             callbackURLScheme: "hyggehousehold"
