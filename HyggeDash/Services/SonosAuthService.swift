@@ -21,7 +21,9 @@ class SonosAuthService: NSObject, ObservableObject {
     }
 
     private var redirectURI: String {
-        Bundle.main.infoDictionary?["SonosRedirectURI"] as? String ?? ""
+        // Note: xcconfig treats // as a comment so HTTPS URLs can't be stored there.
+        // Redirect URI is not a secret — hardcode it.
+        return "https://hyggehousehold.web.app/callback"
     }
 
     private var accessTokenExpiresAt: Date?
