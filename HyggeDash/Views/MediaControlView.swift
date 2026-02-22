@@ -45,9 +45,13 @@ struct MediaControlView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             stationsService.reload()
+            sonosService.startPolling() // reconnects WebSocket + starts polling fallback
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            sonosService.stopAll()
         }
         .onDisappear {
-            sonosService.stopPolling()
+            sonosService.stopAll()
         }
         .sheet(isPresented: $showingZonePicker) {
             ZonePickerView(sonosService: sonosService, isPresented: $showingZonePicker)

@@ -17,10 +17,82 @@ class SonosService: ObservableObject {
     private var householdId: String?
     private var groupId: String?
     private var refreshTimer: Timer?
+    private let webSocket = SonosWebSocketService()
+    private var useWebSocket = false
 
     func configure(authService: SonosAuthService, spotifyService: SpotifyService? = nil) {
         self.authService = authService
         self.spotifyService = spotifyService
+        setupWebSocketCallbacks()
+    }
+
+    // MARK: - WebSocket Integration
+
+    private func setupWebSocketCallbacks() {
+        webSocket.onPlaybackState = { [weak self] isPlaying in
+            guard let self else { return }
+            self.playbackState = SonosPlaybackState(
+                title: self.playbackState?.title,
+                artist: self.playbackState?.artist,
+                album: self.playbackState?.album,
+                isPlaying: isPlaying,
+                volume: self.playbackState?.volume ?? 0
+            )
+        }
+
+        webSocket.onMetadata = { [weak self] title, artist, album, imageUrl in
+            guard let self else { return }
+            self.trackInfo = SonosTrackInfo(
+                artist: artist,
+                album: album,
+                title: title,
+                albumArt: imageUrl,
+                isPlaying: self.playbackState?.isPlaying ?? false
+            )
+            self.playbackState = SonosPlaybackState(
+                title: title,
+                artist: artist,
+                album: album,
+                isPlaying: self.playbackState?.isPlaying ?? false,
+                volume: self.playbackState?.volume ?? 0
+            )
+        }
+
+        webSocket.onVolume = { [weak self] volume in
+            guard let self else { return }
+            self.playbackState = SonosPlaybackState(
+                title: self.playbackState?.title,
+                artist: self.playbackState?.artist,
+                album: self.playbackState?.album,
+                isPlaying: self.playbackState?.isPlaying ?? false,
+                volume: volume
+            )
+        }
+
+        webSocket.onGroupsChanged = { [weak self] in
+            Task { [weak self] in
+                await self?.fetchGroups()
+            }
+        }
+    }
+
+    /// Connect WebSocket to the coordinator speaker of the selected zone
+    private func connectWebSocket() {
+        guard let zone = selectedZone,
+              let coordinator = allPlayers.first(where: { $0.id == zone.coordinatorId }),
+              let ip = coordinator.ip,
+              let hId = householdId,
+              let gId = zone.groupId else {
+            print("🔌 [WS] Cannot connect: missing zone/coordinator/IP")
+            return
+        }
+
+        let wsUrl = "wss://\(ip):1443/websocket/api"
+        webSocket.connect(websocketUrl: wsUrl, householdId: hId, groupId: gId)
+        useWebSocket = true
+
+        // Stop polling when WebSocket is active
+        stopPolling()
     }
 
     // MARK: - API Helpers
@@ -660,16 +732,27 @@ class SonosService: ObservableObject {
         }
     }
 
-    // MARK: - Polling
+    // MARK: - Polling (fallback when WebSocket unavailable)
 
     func startPolling() {
-        stopPolling()
+        // Try WebSocket first
+        connectWebSocket()
 
+        // Also start polling as fallback — will be stopped if WS connects
+        stopPolling()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                await self?.fetchPlaybackState()
+                guard let self else { return }
+                // Skip polling if WebSocket is connected
+                if self.webSocket.isConnected { return }
+                await self.fetchPlaybackState()
             }
         }
+    }
+
+    func stopAll() {
+        stopPolling()
+        webSocket.disconnect()
     }
 
     func stopPolling() {
@@ -684,7 +767,10 @@ class SonosService: ObservableObject {
         groupId = zone.groupId
         print("🔊 [SONOS] Selected zone: \(zone.coordinator) (group: \(zone.groupId ?? "nil"))")
 
-        // Fetch new state for this group
+        // Reconnect WebSocket to new zone's coordinator
+        connectWebSocket()
+
+        // Also fetch current state immediately via REST
         Task {
             await fetchPlaybackState()
         }
