@@ -14,6 +14,8 @@ class SonosWebSocketService: NSObject, ObservableObject {
     private var currentURL: String?
     private var householdId: String?
     private var groupId: String?
+    private var reconnectAttempts = 0
+    private let maxReconnectAttempts = 3
 
     /// Called when playback state changes (playing/paused/idle)
     var onPlaybackState: ((Bool) -> Void)?
@@ -42,9 +44,17 @@ class SonosWebSocketService: NSObject, ObservableObject {
 
         print("🔌 [WS] Connecting to \(websocketUrl)")
 
+        // Sonos local WebSocket requires specific headers
+        var request = URLRequest(url: url)
+        request.setValue("v1.api.smartspeaker.audio", forHTTPHeaderField: "Sec-WebSocket-Protocol")
+
+        // API key is the Sonos Client ID
+        let apiKey = Bundle.main.infoDictionary?["SonosClientID"] as? String ?? ""
+        request.setValue(apiKey, forHTTPHeaderField: "X-Sonos-Api-Key")
+
         let config = URLSessionConfiguration.default
         urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-        webSocketTask = urlSession?.webSocketTask(with: url)
+        webSocketTask = urlSession?.webSocketTask(with: request)
         webSocketTask?.resume()
 
         receiveMessage()
@@ -220,14 +230,21 @@ class SonosWebSocketService: NSObject, ObservableObject {
     }
 
     private func scheduleReconnect() {
+        reconnectAttempts += 1
+        if reconnectAttempts > maxReconnectAttempts {
+            print("🔌 [WS] Max reconnect attempts reached (\(maxReconnectAttempts)), giving up. Polling will continue as fallback.")
+            return
+        }
+
         reconnectTask?.cancel()
+        let delay = min(3.0 * Double(reconnectAttempts), 15.0) // backoff: 3s, 6s, 9s...
         reconnectTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled,
                   let url = currentURL,
                   let hId = householdId,
                   let gId = groupId else { return }
-            print("🔌 [WS] Reconnecting...")
+            print("🔌 [WS] Reconnecting (attempt \(self.reconnectAttempts)/\(self.maxReconnectAttempts))...")
             self.connect(websocketUrl: url, householdId: hId, groupId: gId)
         }
     }
@@ -244,6 +261,7 @@ extension SonosWebSocketService: URLSessionWebSocketDelegate {
         Task { @MainActor in
             print("🔌 [WS] ✅ Connected")
             self.isConnected = true
+            self.reconnectAttempts = 0
             self.subscribeAll()
             self.startPing()
         }
