@@ -78,13 +78,12 @@ enum SonosUPnP {
         let escapedURI = enqueuedURI.xmlEscaped
         let escapedMeta = metadata.xmlEscaped
 
-        let arguments = """
-        <InstanceID>0</InstanceID>\
-        <EnqueuedURI>\(escapedURI)</EnqueuedURI>\
-        <EnqueuedURIMetaData>\(escapedMeta)</EnqueuedURIMetaData>\
-        <DesiredFirstTrackNumberEnqueued>\(position)</DesiredFirstTrackNumberEnqueued>\
-        <EnqueueAsNext>\(asNext ? 1 : 0)</EnqueueAsNext>
-        """
+        let arguments =
+            "<InstanceID>0</InstanceID>" +
+            "<EnqueuedURI>\(escapedURI)</EnqueuedURI>" +
+            "<EnqueuedURIMetaData>\(escapedMeta)</EnqueuedURIMetaData>" +
+            "<DesiredFirstTrackNumberEnqueued>\(position)</DesiredFirstTrackNumberEnqueued>" +
+            "<EnqueueAsNext>\(asNext ? 1 : 0)</EnqueueAsNext>"
 
         let body = soapEnvelope(
             action: "AddURIToQueue",
@@ -102,6 +101,10 @@ enum SonosUPnP {
 
         print("🔌 [UPnP] AddURIToQueue response: \(status)")
 
+        if status >= 400 {
+            throw UPnPError.soapFailed(status)
+        }
+
         // Parse the queue position from response
         let responseStr = String(data: responseData, encoding: .utf8) ?? ""
         if let range = responseStr.range(of: "<FirstTrackNumberEnqueued>"),
@@ -115,11 +118,10 @@ enum SonosUPnP {
     /// Set the queue as transport source and play from a specific index
     static func playFromQueue(speakerIP: String, speakerUID: String, index: Int) async throws {
         // Set the queue as the current transport URI
-        let setURIArgs = """
-        <InstanceID>0</InstanceID>\
-        <CurrentURI>x-rincon-queue:\(speakerUID)#0</CurrentURI>\
-        <CurrentURIMetaData></CurrentURIMetaData>
-        """
+        let setURIArgs =
+            "<InstanceID>0</InstanceID>" +
+            "<CurrentURI>x-rincon-queue:\(speakerUID)#0</CurrentURI>" +
+            "<CurrentURIMetaData></CurrentURIMetaData>"
 
         let setURIBody = soapEnvelope(
             action: "SetAVTransportURI",
@@ -138,11 +140,10 @@ enum SonosUPnP {
 
         // Seek to the right track
         if index > 0 {
-            let seekArgs = """
-            <InstanceID>0</InstanceID>\
-            <Unit>TRACK_NR</Unit>\
-            <Target>\(index + 1)</Target>
-            """
+            let seekArgs =
+                "<InstanceID>0</InstanceID>" +
+                "<Unit>TRACK_NR</Unit>" +
+                "<Target>\(index + 1)</Target>"
 
             let seekBody = soapEnvelope(
                 action: "Seek",
@@ -161,7 +162,9 @@ enum SonosUPnP {
         }
 
         // Play
-        let playArgs = "<InstanceID>0</InstanceID><Speed>1</Speed>"
+        let playArgs =
+            "<InstanceID>0</InstanceID>" +
+            "<Speed>1</Speed>"
         let playBody = soapEnvelope(
             action: "Play",
             serviceType: "AVTransport",
@@ -181,17 +184,15 @@ enum SonosUPnP {
     // MARK: - SOAP Envelope
 
     private static func soapEnvelope(action: String, serviceType: String, arguments: String) -> String {
-        return """
-        <?xml version="1.0"?>\
-        <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" \
-        s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">\
-        <s:Body>\
-        <u:\(action) xmlns:u="urn:schemas-upnp-org:service:\(serviceType):1">\
-        \(arguments)\
-        </u:\(action)>\
-        </s:Body>\
-        </s:Envelope>
-        """
+        return "<?xml version=\"1.0\"?>" +
+            "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\"" +
+            " s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">" +
+            "<s:Body>" +
+            "<u:\(action) xmlns:u=\"urn:schemas-upnp-org:service:\(serviceType):1\">" +
+            arguments +
+            "</u:\(action)>" +
+            "</s:Body>" +
+            "</s:Envelope>"
     }
 
     private static func sendSOAP(
@@ -205,15 +206,25 @@ enum SonosUPnP {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("text/xml; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        // SOAPACTION must be quoted per UPnP spec
         request.setValue(
-            "urn:schemas-upnp-org:service:\(action):1#\(actionName)",
+            "\"urn:schemas-upnp-org:service:\(action):1#\(actionName)\"",
             forHTTPHeaderField: "SOAPACTION"
         )
         request.httpBody = body.data(using: .utf8)
         request.timeoutInterval = 10
 
+        print("🔌 [UPnP] POST \(url)")
+        print("🔌 [UPnP] SOAP body:\n\(body.prefix(500))")
+
         let (data, response) = try await URLSession.shared.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+        if statusCode >= 400 {
+            let responseBody = String(data: data, encoding: .utf8) ?? "nil"
+            print("🔌 [UPnP] ❌ HTTP \(statusCode) response:\n\(responseBody)")
+        }
+
         return (data, statusCode)
     }
 
@@ -274,22 +285,20 @@ enum SonosUPnP {
         }
     }
 
-    /// Build DIDL-Lite metadata matching SoCo's format
+    /// Build DIDL-Lite metadata matching SoCo's format exactly
     private static func buildDIDLMetadata(itemId: String, itemClass: String, serviceNumber: String) -> String {
-        return """
-        <DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" \
-        xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" \
-        xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" \
-        xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">\
-        <item id="\(itemId)" parentID="-1" restricted="true">\
-        <dc:title></dc:title>\
-        <upnp:class>\(itemClass)</upnp:class>\
-        <desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">\
-        SA_RINCON\(serviceNumber)_X_#Svc\(serviceNumber)-0-Token\
-        </desc>\
-        </item>\
-        </DIDL-Lite>
-        """
+        return "<DIDL-Lite xmlns:dc=\"http://purl.org/dc/elements/1.1/\"" +
+            " xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\"" +
+            " xmlns:r=\"urn:schemas-rinconnetworks-com:metadata-1-0/\"" +
+            " xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\">" +
+            "<item id=\"\(itemId)\" parentID=\"-1\" restricted=\"true\">" +
+            "<dc:title></dc:title>" +
+            "<upnp:class>\(itemClass)</upnp:class>" +
+            "<desc id=\"cdudn\" nameSpace=\"urn:schemas-rinconnetworks-com:metadata-1-0/\">" +
+            "SA_RINCON\(serviceNumber)_X_#Svc\(serviceNumber)-0-Token" +
+            "</desc>" +
+            "</item>" +
+            "</DIDL-Lite>"
     }
 
     // MARK: - Errors
