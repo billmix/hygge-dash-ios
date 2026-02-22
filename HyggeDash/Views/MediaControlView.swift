@@ -9,44 +9,62 @@ struct MediaControlView: View {
     @State private var isSliderDragging = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            sectionHeader
+        GeometryReader { geo in
+            let isLandscape = geo.size.width > geo.size.height
 
-            if sonosService.isLoading && sonosService.zones.isEmpty {
-                loadingView
-            } else if sonosService.zones.isEmpty {
-                noZonesView
-            } else {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        nowPlayingSection
-                        playlistButton
-                        controlsSection
-                        volumeSection
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeader
+
+                if sonosService.isLoading && sonosService.zones.isEmpty {
+                    loadingView
+                } else if sonosService.zones.isEmpty {
+                    noZonesView
+                } else if isLandscape {
+                    // Landscape: player left, library right
+                    HStack(alignment: .top, spacing: 16) {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                nowPlayingSection
+                                controlsSection
+                                volumeSection
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        librarySection
+                            .frame(maxWidth: .infinity)
+                    }
+                } else {
+                    // Portrait: player on top, library below
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            nowPlayingSection
+                            controlsSection
+                            volumeSection
+                            librarySection
+                        }
                     }
                 }
-            }
 
-            if let error = sonosService.errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(HyggeTheme.destructive)
-                    .padding(.top, 8)
+                if let error = sonosService.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(HyggeTheme.destructive)
+                }
             }
-
-            Spacer(minLength: 0)
+            .padding()
         }
-        .padding()
         .frame(maxHeight: .infinity)
         .background(HyggeTheme.cardBackground)
         .cornerRadius(20)
         .task {
             await sonosService.fetchSpeakers()
             await sonosService.fetchPlaybackState()
+            await sonosService.fetchFavorites()
             sonosService.startPolling()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-            stationsService.reload() // Pick up any stations added by Share Extension
+            stationsService.reload()
         }
         .onDisappear {
             sonosService.stopPolling()
@@ -178,27 +196,180 @@ struct MediaControlView: View {
         .cornerRadius(12)
     }
 
-    private var playlistButton: some View {
-        Button(action: {
-            showingStationPicker = true
-        }) {
+    // MARK: - Inline Library
+
+    private var librarySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: "music.note.list")
-                    .foregroundColor(HyggeTheme.accent)
-                Text("Playlists")
+                Text("Library")
                     .font(.subheadline)
-                    .fontWeight(.medium)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .fontWeight(.semibold)
                     .foregroundColor(HyggeTheme.textSecondary)
+                Spacer()
+                Button {
+                    showingStationPicker = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                        Text("Add")
+                    }
+                    .font(.caption)
+                    .foregroundColor(HyggeTheme.accent)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+
+            if sonosService.favorites.isEmpty && stationsService.stations.isEmpty {
+                libraryEmptyState
+            } else {
+                VStack(spacing: 6) {
+                    // Sonos Favorites
+                    ForEach(sonosService.favorites.prefix(8)) { favorite in
+                        libraryFavoriteRow(favorite)
+                    }
+
+                    // Saved stations
+                    ForEach(stationsService.stations.prefix(8)) { station in
+                        libraryStationRow(station)
+                    }
+
+                    // "See All" if there's more
+                    let totalCount = sonosService.favorites.count + stationsService.stations.count
+                    if totalCount > 8 {
+                        Button {
+                            showingStationPicker = true
+                        } label: {
+                            Text("See All (\(totalCount))")
+                                .font(.caption)
+                                .foregroundColor(HyggeTheme.accent)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var libraryEmptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "music.note.list")
+                .font(.title3)
+                .foregroundColor(HyggeTheme.textTertiary)
+            Text("No music saved")
+                .font(.caption)
+                .foregroundColor(HyggeTheme.textTertiary)
+            Text("Tap + to add, or share from Spotify")
+                .font(.caption2)
+                .foregroundColor(HyggeTheme.textTertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .background(HyggeTheme.cardBackgroundLight)
+        .cornerRadius(10)
+    }
+
+    private func libraryFavoriteRow(_ favorite: SonosFavorite) -> some View {
+        Button {
+            Task {
+                await sonosService.playFavorite(favorite)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                if let imageUrl = favorite.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.orange)
+                            .frame(width: 36, height: 36)
+                            .background(HyggeTheme.cardBackgroundLight)
+                    }
+                    .frame(width: 36, height: 36)
+                    .cornerRadius(6)
+                } else {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .frame(width: 36, height: 36)
+                        .background(HyggeTheme.cardBackgroundLight)
+                        .cornerRadius(6)
+                }
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(favorite.name)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(HyggeTheme.textPrimary)
+                        .lineLimit(1)
+                    if let service = favorite.service {
+                        Text(service)
+                            .font(.caption2)
+                            .foregroundColor(HyggeTheme.textTertiary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "play.circle.fill")
+                    .font(.body)
+                    .foregroundColor(HyggeTheme.accent.opacity(0.6))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(HyggeTheme.cardBackgroundLight)
-            .cornerRadius(10)
+            .cornerRadius(8)
         }
         .buttonStyle(.plain)
+    }
+
+    private func libraryStationRow(_ station: Station) -> some View {
+        Button {
+            Task {
+                await sonosService.playStation(station)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: station.source.iconName)
+                    .font(.caption)
+                    .foregroundColor(sourceColor(for: station.source))
+                    .frame(width: 36, height: 36)
+                    .background(sourceColor(for: station.source).opacity(0.12))
+                    .cornerRadius(6)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(station.name)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(HyggeTheme.textPrimary)
+                        .lineLimit(1)
+                    Text(station.subtitle)
+                        .font(.caption2)
+                        .foregroundColor(HyggeTheme.textTertiary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "play.circle.fill")
+                    .font(.body)
+                    .foregroundColor(HyggeTheme.accent.opacity(0.6))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(HyggeTheme.cardBackgroundLight)
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func sourceColor(for source: StationSource) -> Color {
+        switch source {
+        case .spotify: return Color(red: 0.12, green: 0.84, blue: 0.38)
+        case .appleMusic: return Color(red: 0.98, green: 0.34, blue: 0.38)
+        case .tidal: return Color(red: 0.0, green: 0.78, blue: 0.85)
+        case .deezer: return Color(red: 0.63, green: 0.29, blue: 0.88)
+        case .stream: return HyggeTheme.accent
+        }
     }
 
     private var controlsSection: some View {
