@@ -466,26 +466,71 @@ class SonosService: ObservableObject {
         await fetchPlaybackState()
     }
 
-    /// Play Spotify content: try Spotify Connect first, fall back to Sonos loadContent+play
+    /// Play Spotify content via multiple strategies
     private func playSpotifyContent(shareLink: ShareLinkInfo, groupId gId: String) async {
-        // Strategy 1: Try Spotify Connect API (if authenticated and devices available)
-        if let spotify = spotifyService, spotify.isAuthenticated {
-            await spotify.fetchDevices()
-
-            let speakerName = selectedZone?.coordinator ?? ""
-            let device = spotify.findSonosDevice(named: speakerName)
-                ?? spotify.availableDevices.first
-
-            if let device {
-                print("🔊 [STATION] Playing via Spotify Connect on \(device.name)")
-                await spotify.play(uri: shareLink.objectId, deviceId: device.id)
-                return
-            }
-            print("🔊 [STATION] No Spotify Connect devices, falling back to Sonos API")
+        guard let spotify = spotifyService, spotify.isAuthenticated else {
+            errorMessage = "Connect your Spotify account in Settings to play Spotify links"
+            return
         }
 
-        // Strategy 2: Sonos loadContent + explicit play (starts Spotify on the speaker)
-        await playViaLoadContent(shareLink: shareLink, groupId: gId)
+        // Strategy 1: Try Spotify API without device ID (plays on last active device)
+        print("🔊 [SPOTIFY PLAY] Strategy 1: play with no device ID")
+        if await spotify.play(uri: shareLink.objectId) {
+            return
+        }
+
+        // Strategy 2: Check for existing devices
+        print("🔊 [SPOTIFY PLAY] Strategy 2: find device and play")
+        await spotify.fetchDevices()
+        if let device = findBestSpotifyDevice(spotify: spotify) {
+            print("🔊 [SPOTIFY PLAY] Found device: \(device.name)")
+            if await spotify.play(uri: shareLink.objectId, deviceId: device.id) {
+                return
+            }
+        }
+
+        // Strategy 3: Activate Spotify on speaker via a Spotify-based Sonos Favorite,
+        // then switch to the desired content via Spotify API
+        print("🔊 [SPOTIFY PLAY] Strategy 3: bootstrap via Sonos Spotify favorite")
+        if let spotifyFavorite = favorites.first(where: { $0.service?.lowercased().contains("spotify") == true }) {
+            print("🔊 [SPOTIFY PLAY] Bootstrapping with favorite: \(spotifyFavorite.name)")
+            await playFavorite(spotifyFavorite)
+
+            // Wait for the speaker to register as a Spotify Connect device
+            for attempt in 1...5 {
+                try? await Task.sleep(for: .seconds(2))
+                await spotify.fetchDevices()
+                print("🔊 [SPOTIFY PLAY] Device check attempt \(attempt): \(spotify.availableDevices.count) devices")
+
+                if let device = findBestSpotifyDevice(spotify: spotify) {
+                    print("🔊 [SPOTIFY PLAY] ✅ Speaker appeared: \(device.name)")
+                    // Small delay to let the device fully activate
+                    try? await Task.sleep(for: .seconds(1))
+                    if await spotify.play(uri: shareLink.objectId, deviceId: device.id) {
+                        return
+                    }
+                }
+            }
+        }
+
+        print("🔊 [SPOTIFY PLAY] ❌ All strategies failed")
+        errorMessage = "Could not activate Spotify on speaker. Add a Spotify item to your Sonos Favorites to enable this."
+    }
+
+    /// Find the best Spotify Connect device matching the current Sonos zone
+    private func findBestSpotifyDevice(spotify: SpotifyService) -> SpotifyDevice? {
+        let speakerName = selectedZone?.coordinator ?? ""
+
+        // Try exact match first
+        if let match = spotify.findSonosDevice(named: speakerName) {
+            return match
+        }
+        // Try any Sonos/Speaker device
+        if let speaker = spotify.availableDevices.first(where: { $0.type == "Speaker" }) {
+            return speaker
+        }
+        // Last resort: any device
+        return spotify.availableDevices.first
     }
 
     /// Play a music service share link — tries multiple Sonos Cloud API approaches

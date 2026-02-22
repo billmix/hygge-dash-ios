@@ -230,11 +230,16 @@ class SpotifyService: NSObject, ObservableObject {
             let (data, response) = try await apiRequest(url: URL(string: "\(apiBase)/me/player/devices")!)
             print("🎵 [SPOTIFY] Devices response: \(response.statusCode)")
 
+            let rawBody = String(data: data, encoding: .utf8) ?? "nil"
+            print("🎵 [SPOTIFY] Devices body: \(rawBody)")
+
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let devices = json["devices"] as? [[String: Any]] else {
-                print("🎵 [SPOTIFY] No devices found")
+                print("🎵 [SPOTIFY] No devices array in response")
                 return
             }
+
+            print("🎵 [SPOTIFY] Found \(devices.count) devices")
 
             availableDevices = devices.compactMap { device in
                 guard let id = device["id"] as? String,
@@ -251,30 +256,42 @@ class SpotifyService: NSObject, ObservableObject {
 
     // MARK: - Playback Control
 
-    /// Play a Spotify URI on a specific device (or active device)
-    func play(uri: String, deviceId: String? = nil) async {
+    /// Play a Spotify URI on a specific device (or active/last device)
+    func play(uri: String, deviceId: String? = nil) async -> Bool {
         do {
             var url = URLComponents(string: "\(apiBase)/me/player/play")!
             if let deviceId {
                 url.queryItems = [URLQueryItem(name: "device_id", value: deviceId)]
             }
 
-            // Determine if this is a track or a context (album/playlist)
+            // Determine if this is a track or a context (album/playlist/show)
             let body: [String: Any]
-            if uri.contains(":track:") {
+            if uri.contains(":track:") || uri.contains(":episode:") {
                 body = ["uris": [uri]]
             } else {
                 body = ["context_uri": uri]
             }
 
-            print("🎵 [SPOTIFY] Playing \(uri) on device \(deviceId ?? "active")")
+            print("🎵 [SPOTIFY] Playing \(uri) on device \(deviceId ?? "last-active/none")")
             let (data, response) = try await apiRequest(url: url.url!, method: "PUT", body: body)
             print("🎵 [SPOTIFY] Play response: \(response.statusCode)")
-            if response.statusCode >= 400 {
-                print("🎵 [SPOTIFY] Play error: \(String(data: data, encoding: .utf8) ?? "nil")")
+
+            if response.statusCode == 204 || response.statusCode == 200 {
+                print("🎵 [SPOTIFY] ✅ Play succeeded!")
+                return true
             }
+
+            let errorBody = String(data: data, encoding: .utf8) ?? "nil"
+            print("🎵 [SPOTIFY] Play error: \(errorBody)")
+
+            // 404 = no active device
+            if response.statusCode == 404 {
+                print("🎵 [SPOTIFY] No active device — need to transfer playback first")
+            }
+            return false
         } catch {
             print("🎵 [SPOTIFY] ❌ Play error: \(error)")
+            return false
         }
     }
 
