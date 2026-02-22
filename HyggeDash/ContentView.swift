@@ -8,27 +8,58 @@ struct ContentView: View {
     @StateObject private var weatherService = WeatherService()
 
     @State private var showingSettings = false
+    @State private var selectedTab = 0
+
+    private let tabs: [(icon: String, label: String)] = [
+        ("clock.fill", "Time"),
+        ("quote.opening", "Quotes"),
+        ("hifispeaker.2.fill", "Music"),
+        ("house.fill", "Home"),
+    ]
 
     var body: some View {
-        GeometryReader { geometry in
-            let isLandscape = geometry.size.width > geometry.size.height
+        ZStack {
+            HyggeTheme.background
+                .ignoresSafeArea()
 
-            ZStack {
-                backgroundGradient
+            VStack(spacing: 0) {
+                headerView
 
-                VStack(spacing: 0) {
-                    headerView
+                // Carousel
+                TabView(selection: $selectedTab) {
+                    // Time & Weather
+                    timeWeatherPage
+                        .tag(0)
 
-                    if isLandscape {
-                        landscapeLayout
-                    } else {
-                        portraitLayout
-                    }
+                    // Quotes
+                    QuotesView(quotesService: quotesService)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                        .tag(1)
+
+                    // Music
+                    MediaControlView(sonosService: sonosService)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                        .tag(2)
+
+                    // Home
+                    HomeKitView(homeKitManager: homeKitManager)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
+                        .tag(3)
                 }
+                .tabViewStyle(.page(indexDisplayMode: .never))
 
-                if !sonosAuthService.isAuthenticated {
-                    connectOverlay
-                }
+                // Tab bar
+                tabBar
+            }
+
+            if !sonosAuthService.isAuthenticated {
+                connectOverlay
             }
         }
         .onAppear {
@@ -41,55 +72,99 @@ struct ContentView: View {
         }
     }
 
-    private var backgroundGradient: some View {
-        Color(red: 0.96, green: 0.96, blue: 0.96)
-            .ignoresSafeArea()
-    }
+    // MARK: - Header
 
     private var headerView: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Hygge")
-                    .font(.largeTitle)
+                    .font(.title2)
                     .fontWeight(.bold)
+                    .foregroundColor(HyggeTheme.textPrimary)
                 Text(dateString)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(HyggeTheme.textSecondary)
             }
 
             Spacer()
 
             Button(action: { showingSettings = true }) {
                 Image(systemName: "gearshape.fill")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-                    .padding(12)
-                    .background(Color(.systemBackground).opacity(0.8))
-                    .cornerRadius(12)
+                    .font(.body)
+                    .foregroundColor(HyggeTheme.textSecondary)
+                    .padding(10)
+                    .background(HyggeTheme.cardBackground)
+                    .cornerRadius(10)
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 16)
+        .padding(.top, 12)
         .padding(.bottom, 8)
     }
 
+    // MARK: - Tab Bar
+
+    private var tabBar: some View {
+        HStack(spacing: 0) {
+            ForEach(0..<tabs.count, id: \.self) { index in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        selectedTab = index
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: tabs[index].icon)
+                            .font(.system(size: 20))
+                        Text(tabs[index].label)
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundColor(selectedTab == index ? HyggeTheme.accent : HyggeTheme.textTertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 4)
+        .background(HyggeTheme.background)
+    }
+
+    // MARK: - Time & Weather Page
+
+    private var timeWeatherPage: some View {
+        VStack(spacing: 16) {
+            TimeWidgetView()
+                .frame(maxHeight: .infinity)
+
+            WeatherWidgetView(weatherService: weatherService)
+                .frame(maxHeight: .infinity)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 16)
+        .tag(0)
+    }
+
+    // MARK: - Connect Overlay
+
     private var connectOverlay: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            Color.black.opacity(0.6)
                 .ignoresSafeArea()
 
             VStack(spacing: 20) {
                 Image(systemName: "hifispeaker.2.fill")
                     .font(.system(size: 48))
-                    .foregroundColor(.green)
+                    .foregroundColor(HyggeTheme.accent)
 
                 Text("Connect Your Sonos")
                     .font(.title2)
                     .fontWeight(.semibold)
+                    .foregroundColor(HyggeTheme.textPrimary)
 
                 Text("Sign in with your Sonos account to control your speakers.")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(HyggeTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
 
@@ -100,8 +175,8 @@ struct ContentView: View {
                         .fontWeight(.medium)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.green)
-                        .foregroundColor(.white)
+                        .background(HyggeTheme.accent)
+                        .foregroundColor(.black)
                         .cornerRadius(12)
                 }
                 .padding(.horizontal, 40)
@@ -109,7 +184,7 @@ struct ContentView: View {
                 if let error = sonosAuthService.authError {
                     Text(error)
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundColor(HyggeTheme.destructive)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 }
@@ -118,67 +193,12 @@ struct ContentView: View {
                     showingSettings = true
                 }
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
             }
             .padding(40)
-            .background(Color(.systemBackground))
+            .background(HyggeTheme.cardBackground)
             .cornerRadius(24)
-            .shadow(radius: 20)
             .padding(40)
-        }
-    }
-
-    private var landscapeLayout: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 20) {
-                // Left side - Quotes (1/3 of screen)
-                QuotesView(quotesService: quotesService)
-                    .frame(width: geometry.size.width * 0.33)
-
-                // Right side - 2x2 Grid of widgets (2/3 of screen)
-                VStack(spacing: 20) {
-                    // Top row: Clock and Weather (shorter)
-                    HStack(spacing: 20) {
-                        TimeWidgetView()
-                            .frame(maxWidth: .infinity)
-
-                        WeatherWidgetView(weatherService: weatherService)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .frame(height: geometry.size.height * 0.40)
-
-                    // Bottom row: HomeKit and Music (taller for controls)
-                    HStack(spacing: 20) {
-                        HomeKitView(homeKitManager: homeKitManager)
-                            .frame(maxWidth: .infinity)
-
-                        MediaControlView(sonosService: sonosService)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .frame(height: geometry.size.height * 0.56)
-                }
-                .frame(width: geometry.size.width * 0.67 - 20)
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-    }
-
-    private var portraitLayout: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Quotes at top in portrait
-                QuotesView(quotesService: quotesService)
-                    .frame(minHeight: 250)
-
-                // HomeKit section
-                HomeKitView(homeKitManager: homeKitManager)
-
-                // Media controls
-                MediaControlView(sonosService: sonosService)
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
         }
     }
 

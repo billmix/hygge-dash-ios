@@ -16,9 +16,8 @@ struct QuotesView: View {
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .background(HyggeTheme.cardBackground)
         .cornerRadius(32)
-        .shadow(color: .black.opacity(0.08), radius: 20, x: 0, y: 8)
     }
 
     private var quoteContent: some View {
@@ -37,7 +36,7 @@ struct QuotesView: View {
 
                 Text("— \(quotesService.currentQuote.author)")
                     .font(.system(size: 28, weight: .regular, design: .rounded))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(HyggeTheme.accent.opacity(0.7))
                     .minimumScaleFactor(0.5)
                     .lineLimit(2)
                     .opacity(isAnimating ? 1 : 0)
@@ -72,8 +71,8 @@ struct QuotesView: View {
                 .fontWeight(.medium)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
-                .background(Color.white.opacity(0.15))
-                .foregroundColor(.white)
+                .background(HyggeTheme.accent.opacity(0.15))
+                .foregroundColor(HyggeTheme.accent)
                 .cornerRadius(20)
             }
             .buttonStyle(.plain)

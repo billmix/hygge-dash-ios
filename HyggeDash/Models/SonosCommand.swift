@@ -20,43 +20,56 @@ enum SonosCommand: String {
         }
     }
 
-    /// Returns (namespace, command) for Sonos WebSocket API
-    var webSocketCommand: (String, String) {
+    /// Returns (endpoint URL, optional body) for Sonos Cloud REST API
+    func restEndpoint(groupId: String, baseURL: String) -> (String, [String: Any]?) {
         switch self {
-        case .play: return ("playback", "play")
-        case .pause: return ("playback", "pause")
-        case .pausePlay: return ("playback", "togglePlayPause")
-        case .next: return ("playback", "skipToNextTrack")
-        case .previous: return ("playback", "skipToPreviousTrack")
-        case .volumeUp: return ("playerVolume", "setRelativeVolume")
-        case .volumeDown: return ("playerVolume", "setRelativeVolume")
+        case .play:
+            return ("\(baseURL)/groups/\(groupId)/playback/play", nil)
+        case .pause:
+            return ("\(baseURL)/groups/\(groupId)/playback/pause", nil)
+        case .pausePlay:
+            return ("\(baseURL)/groups/\(groupId)/playback/togglePlayPause", nil)
+        case .next:
+            return ("\(baseURL)/groups/\(groupId)/playback/skipToNextTrack", nil)
+        case .previous:
+            return ("\(baseURL)/groups/\(groupId)/playback/skipToPreviousTrack", nil)
+        case .volumeUp:
+            return ("\(baseURL)/groups/\(groupId)/groupVolume/relative", ["volumeDelta": 5])
+        case .volumeDown:
+            return ("\(baseURL)/groups/\(groupId)/groupVolume/relative", ["volumeDelta": -5])
         }
     }
 }
 
-struct SonosZone: Identifiable, Codable {
-    var id: String { coordinator }
+struct SonosPlayer: Identifiable {
+    let id: String
+    let name: String
+}
+
+struct SonosFavorite: Identifiable {
+    let id: String
+    let name: String
+    let description: String?
+    let imageUrl: String?
+    let service: String?
+}
+
+struct SonosZone: Identifiable {
+    var id: String { groupId ?? coordinator }
     let coordinator: String
+    let coordinatorId: String
     let members: [String]
-    let isPlaying: Bool?
+    let memberIds: [String]
+    let groupId: String?
 
-    enum CodingKeys: String, CodingKey {
-        case coordinator
-        case members
-        case isPlaying = "is_playing"
-    }
+    var isGroup: Bool { memberIds.count > 1 }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        coordinator = try container.decode(String.self, forKey: .coordinator)
-        members = try container.decodeIfPresent([String].self, forKey: .members) ?? []
-        isPlaying = try container.decodeIfPresent(Bool.self, forKey: .isPlaying)
-    }
-
-    init(coordinator: String, members: [String] = [], isPlaying: Bool? = nil) {
+    init(coordinator: String, coordinatorId: String = "", members: [String] = [], memberIds: [String] = [], groupId: String? = nil) {
         self.coordinator = coordinator
+        self.coordinatorId = coordinatorId
         self.members = members
-        self.isPlaying = isPlaying
+        self.memberIds = memberIds
+        self.groupId = groupId
     }
 }
 

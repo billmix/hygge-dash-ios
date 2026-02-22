@@ -17,25 +17,29 @@ struct MediaControlView: View {
             } else if sonosService.zones.isEmpty {
                 noZonesView
             } else {
-                VStack(spacing: 20) {
-                    nowPlayingSection
-                    playlistButton
-                    controlsSection
-                    volumeSection
+                ScrollView {
+                    VStack(spacing: 20) {
+                        nowPlayingSection
+                        playlistButton
+                        controlsSection
+                        volumeSection
+                    }
                 }
             }
 
             if let error = sonosService.errorMessage {
                 Text(error)
                     .font(.caption)
-                    .foregroundColor(.red)
+                    .foregroundColor(HyggeTheme.destructive)
                     .padding(.top, 8)
             }
+
+            Spacer(minLength: 0)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .frame(maxHeight: .infinity)
+        .background(HyggeTheme.cardBackground)
         .cornerRadius(20)
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 4)
         .task {
             await sonosService.fetchSpeakers()
             await sonosService.fetchPlaybackState()
@@ -60,7 +64,7 @@ struct MediaControlView: View {
         HStack {
             Image(systemName: "hifispeaker.2.fill")
                 .font(.title2)
-                .foregroundColor(.green)
+                .foregroundColor(HyggeTheme.accent)
             Text("Music")
                 .font(.title2)
                 .fontWeight(.semibold)
@@ -74,7 +78,7 @@ struct MediaControlView: View {
                         Image(systemName: "chevron.down")
                             .font(.caption)
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(HyggeTheme.textSecondary)
                 }
             }
         }
@@ -85,7 +89,7 @@ struct MediaControlView: View {
             ProgressView()
             Text("Connecting to Sonos...")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -95,12 +99,12 @@ struct MediaControlView: View {
         VStack(spacing: 16) {
             Image(systemName: "hifispeaker.slash")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
             Text("No Speakers Found")
                 .font(.headline)
             Text("Check that your Sonos account is connected in Settings and speakers are on your network.")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
                 .multilineTextAlignment(.center)
             Button("Retry") {
                 Task {
@@ -127,14 +131,14 @@ struct MediaControlView: View {
                 if let artist = trackInfo.artist, !artist.isEmpty {
                     Text(artist)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(HyggeTheme.textSecondary)
                         .lineLimit(1)
                 }
 
                 if let album = trackInfo.album, !album.isEmpty {
                     Text(album)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(HyggeTheme.textSecondary)
                         .lineLimit(1)
                 }
                 
@@ -149,25 +153,25 @@ struct MediaControlView: View {
                 if let artist = state.artist, !artist.isEmpty {
                     Text(artist)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(HyggeTheme.textSecondary)
                         .lineLimit(1)
                 }
 
                 if let album = state.album, !album.isEmpty {
                     Text(album)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(HyggeTheme.textSecondary)
                         .lineLimit(1)
                 }
             } else {
                 Text("Not Playing")
                     .font(.headline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(HyggeTheme.textSecondary)
             }
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(HyggeTheme.cardBackgroundLight)
         .cornerRadius(12)
     }
 
@@ -177,18 +181,18 @@ struct MediaControlView: View {
         }) {
             HStack {
                 Image(systemName: "music.note.list")
-                    .foregroundColor(.green)
+                    .foregroundColor(HyggeTheme.accent)
                 Text("Playlists")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(HyggeTheme.textSecondary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(.secondarySystemBackground))
+            .background(HyggeTheme.cardBackgroundLight)
             .cornerRadius(10)
         }
         .buttonStyle(.plain)
@@ -240,9 +244,9 @@ struct MediaControlView: View {
                         }
                     }
                 )
-                .tint(.green)
+                .tint(HyggeTheme.accent)
                 .onChange(of: sonosService.playbackState?.volume) { _, newVolume in
-                    // Only sync from server when not dragging
+                    // Only sync from Sonos when not dragging
                     if !isSliderDragging, let volume = newVolume {
                         localVolume = Double(volume)
                     }
@@ -250,7 +254,7 @@ struct MediaControlView: View {
 
                 Text("\(Int(localVolume))%")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(HyggeTheme.textSecondary)
             }
 
             MediaButton(systemImage: "speaker.plus.fill", isSmall: true) {
@@ -258,7 +262,7 @@ struct MediaControlView: View {
             }
         }
         .onAppear {
-            // Initialize local volume from server state
+            // Initialize local volume from Sonos state
             if let volume = sonosService.playbackState?.volume {
                 localVolume = Double(volume)
             }
@@ -278,8 +282,8 @@ struct MediaButton: View {
                 .font(isLarge ? .title : isSmall ? .body : .title3)
                 .frame(width: isLarge ? 64 : isSmall ? 36 : 44,
                        height: isLarge ? 64 : isSmall ? 36 : 44)
-                .background(isLarge ? Color.green.opacity(0.15) : Color(.secondarySystemBackground))
-                .foregroundColor(isLarge ? .green : .primary)
+                .background(isLarge ? HyggeTheme.accent.opacity(0.15) : HyggeTheme.cardBackground)
+                .foregroundColor(isLarge ? HyggeTheme.accent : HyggeTheme.textPrimary)
                 .cornerRadius(isLarge ? 32 : isSmall ? 8 : 12)
         }
         .buttonStyle(.plain)
@@ -289,45 +293,186 @@ struct MediaButton: View {
 struct ZonePickerView: View {
     @ObservedObject var sonosService: SonosService
     @Binding var isPresented: Bool
+    @State private var isGrouping = false
+    @State private var selectedPlayerIds: Set<String> = []
+    @State private var isWorking = false
 
     var body: some View {
         NavigationStack {
-            List(sonosService.zones) { zone in
-                Button(action: {
-                    sonosService.selectedZone = zone
-                    Task {
-                        await sonosService.fetchPlaybackState()
-                    }
-                    isPresented = false
-                }) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(zone.coordinator)
-                                .font(.headline)
-                            if !zone.members.isEmpty {
-                                Text(zone.members.joined(separator: ", "))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if sonosService.selectedZone?.id == zone.id {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.green)
-                        }
-                    }
+            List {
+                if isGrouping {
+                    groupingSection
+                } else {
+                    selectSection
                 }
-                .foregroundColor(.primary)
             }
-            .navigationTitle("Select Room")
+            .listStyle(.insetGrouped)
+            .navigationTitle(isGrouping ? "Group Speakers" : "Select Room")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        isPresented = false
+                    Button(isGrouping ? "Cancel" : "Done") {
+                        if isGrouping {
+                            isGrouping = false
+                            selectedPlayerIds.removeAll()
+                        } else {
+                            isPresented = false
+                        }
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    if isGrouping {
+                        Button("Group") {
+                            applyGrouping()
+                        }
+                        .fontWeight(.semibold)
+                        .disabled(selectedPlayerIds.count < 2 || isWorking)
+                    } else {
+                        Button {
+                            enterGroupingMode()
+                        } label: {
+                            Label("Group Speakers", systemImage: "hifispeaker.2")
+                        }
                     }
                 }
             }
+            .overlay {
+                if isWorking {
+                    ProgressView("Updating…")
+                        .padding()
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+    }
+
+    // MARK: - Normal select mode
+
+    private var selectSection: some View {
+        Section {
+            ForEach(sonosService.zones) { zone in
+                Button {
+                    if sonosService.selectedZone?.id == zone.id {
+                        // Already selected — enter grouping mode for this zone
+                        selectedPlayerIds = Set(zone.memberIds)
+                        isGrouping = true
+                    } else {
+                        sonosService.selectZone(zone)
+                        isPresented = false
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: zone.isGroup ? "hifispeaker.2.fill" : "hifispeaker.fill")
+                            .foregroundColor(HyggeTheme.accent)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(zone.coordinator)
+                                .font(.headline)
+                            if zone.isGroup {
+                                Text(zone.members.joined(separator: " + "))
+                                    .font(.caption)
+                                    .foregroundColor(HyggeTheme.textSecondary)
+                            }
+                        }
+
+                        Spacer()
+
+                        if sonosService.selectedZone?.id == zone.id {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(HyggeTheme.accent)
+                        }
+                    }
+                }
+                .foregroundColor(HyggeTheme.textPrimary)
+            }
+        } header: {
+            Text("Rooms & Groups")
+        }
+    }
+
+    // MARK: - Grouping mode
+
+    private var groupingSection: some View {
+        Section {
+            ForEach(sonosService.allPlayers) { player in
+                Button {
+                    togglePlayer(player.id)
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: selectedPlayerIds.contains(player.id)
+                              ? "checkmark.circle.fill" : "circle")
+                            .foregroundColor(selectedPlayerIds.contains(player.id) ? HyggeTheme.accent : HyggeTheme.textSecondary)
+                            .font(.title3)
+                            .frame(width: 28)
+
+                        Image(systemName: "hifispeaker.fill")
+                            .foregroundColor(selectedPlayerIds.contains(player.id) ? HyggeTheme.accent : HyggeTheme.textSecondary)
+                            .frame(width: 24)
+
+                        Text(player.name)
+                            .font(.body)
+
+                        Spacer()
+
+                        // Show current group membership
+                        if let zone = currentZone(for: player.id), zone.isGroup {
+                            Text("in \(zone.coordinator)")
+                                .font(.caption)
+                                .foregroundColor(HyggeTheme.textSecondary)
+                        }
+                    }
+                }
+                .foregroundColor(HyggeTheme.textPrimary)
+            }
+        } header: {
+            Text("Select speakers to group together")
+        } footer: {
+            if selectedPlayerIds.count < 2 {
+                Text("Select at least 2 speakers to create a group.")
+            } else {
+                let names = selectedPlayerIds.compactMap { id in
+                    sonosService.allPlayers.first { $0.id == id }?.name
+                }
+                Text("Will group: \(names.joined(separator: " + "))")
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func togglePlayer(_ id: String) {
+        if selectedPlayerIds.contains(id) {
+            selectedPlayerIds.remove(id)
+        } else {
+            selectedPlayerIds.insert(id)
+        }
+    }
+
+    private func currentZone(for playerId: String) -> SonosZone? {
+        sonosService.zones.first { $0.memberIds.contains(playerId) }
+    }
+
+    private func enterGroupingMode() {
+        // Pre-select current group members if a zone is selected
+        if let zone = sonosService.selectedZone {
+            selectedPlayerIds = Set(zone.memberIds)
+        } else {
+            selectedPlayerIds.removeAll()
+        }
+        isGrouping = true
+    }
+
+    private func applyGrouping() {
+        let playerIds = Array(selectedPlayerIds)
+        guard playerIds.count >= 2 else { return }
+
+        isWorking = true
+        Task {
+            await sonosService.createGroup(playerIds: playerIds)
+            isWorking = false
+            isGrouping = false
+            selectedPlayerIds.removeAll()
         }
     }
 }
@@ -335,5 +480,5 @@ struct ZonePickerView: View {
 #Preview {
     MediaControlView(sonosService: SonosService())
         .padding()
-        .background(Color(.systemGroupedBackground))
+        .background(HyggeTheme.background)
 }

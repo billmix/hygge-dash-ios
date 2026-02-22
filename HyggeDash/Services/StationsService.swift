@@ -3,56 +3,53 @@ import Foundation
 @MainActor
 class StationsService: ObservableObject {
     @Published var stations: [Station] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
 
-    private var cachedStations: [Station]?
-    private var lastFetchTime: Date?
-    private let cacheExpirationSeconds: TimeInterval = 300 // 5 minutes
+    private static let storageKey = "savedStations"
 
-    var baseURL: String {
-        let ip = UserDefaults.standard.string(forKey: "sonosServerIP") ?? "192.168.1.16"
-        let port = UserDefaults.standard.string(forKey: "stationsServerPort") ?? "8766"
-        return "http://\(ip):\(port)"
+    init() {
+        loadStations()
     }
 
-    func fetchStations(forceRefresh: Bool = false) async {
-        // Return cached data if still valid
-        if !forceRefresh,
-           let cached = cachedStations,
-           let lastFetch = lastFetchTime,
-           Date().timeIntervalSince(lastFetch) < cacheExpirationSeconds {
-            stations = cached
-            return
-        }
+    // MARK: - CRUD
 
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            guard let url = URL(string: "\(baseURL)/stations") else {
-                throw URLError(.badURL)
-            }
-
-            let (data, response) = try await URLSession.shared.data(from: url)
-
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
-                throw URLError(.badServerResponse)
-            }
-
-            let stationsResponse = try JSONDecoder().decode(StationsResponse.self, from: data)
-            self.stations = stationsResponse.stations
-            self.cachedStations = stationsResponse.stations
-            self.lastFetchTime = Date()
-        } catch {
-            errorMessage = "Failed to load playlists: \(error.localizedDescription)"
-        }
-
-        isLoading = false
+    func addStation(name: String, url: String) {
+        let station = Station(name: name, url: url)
+        stations.append(station)
+        saveStations()
     }
 
-    func clearCache() {
-        cachedStations = nil
-        lastFetchTime = nil
+    func updateStation(_ station: Station, name: String, url: String) {
+        guard let index = stations.firstIndex(where: { $0.id == station.id }) else { return }
+        stations[index].name = name
+        stations[index].url = url
+        saveStations()
+    }
+
+    func deleteStation(_ station: Station) {
+        stations.removeAll { $0.id == station.id }
+        saveStations()
+    }
+
+    func deleteStations(at offsets: IndexSet) {
+        stations.remove(atOffsets: offsets)
+        saveStations()
+    }
+
+    func moveStations(from source: IndexSet, to destination: Int) {
+        stations.move(fromOffsets: source, toOffset: destination)
+        saveStations()
+    }
+
+    // MARK: - Persistence
+
+    private func saveStations() {
+        guard let data = try? JSONEncoder().encode(stations) else { return }
+        UserDefaults.standard.set(data, forKey: Self.storageKey)
+    }
+
+    private func loadStations() {
+        guard let data = UserDefaults.standard.data(forKey: Self.storageKey),
+              let saved = try? JSONDecoder().decode([Station].self, from: data) else { return }
+        stations = saved
     }
 }

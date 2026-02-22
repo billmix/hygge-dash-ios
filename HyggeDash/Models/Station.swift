@@ -1,11 +1,13 @@
 import Foundation
 
 struct Station: Identifiable, Codable, Hashable {
-    var id: String { name }
-    let name: String
-    let url: String
-}
+    let id: UUID
+    var name: String
+    var url: String
 
-struct StationsResponse: Codable {
-    let stations: [Station]
+    init(id: UUID = UUID(), name: String, url: String) {
+        self.id = id
+        self.name = name
+        self.url = url
+    }
 }

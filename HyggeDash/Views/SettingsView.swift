@@ -64,7 +64,7 @@ struct SettingsView: View {
                 Text("Version")
                 Spacer()
                 Text("1.0.0")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(HyggeTheme.textSecondary)
             }
 
             Link(destination: URL(string: "https://developer.sonos.com")!) {
@@ -72,7 +72,7 @@ struct SettingsView: View {
                     Text("Sonos Developer Documentation")
                     Spacer()
                     Image(systemName: "arrow.up.right.square")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(HyggeTheme.textSecondary)
                 }
             }
         } header: {

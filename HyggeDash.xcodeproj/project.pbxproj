@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3FA000012F500000003DFFDD /* SonosAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA000002F500000003DFFDD /* SonosAuthService.swift */; };
 		3F05FDE72F1C25D9003DFFDD /* TimeWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDE62F1C25D9003DFFDD /* TimeWidgetView.swift */; };
 		3F05FDE92F1C3947003DFFDD /* WeatherWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDE82F1C3947003DFFDD /* WeatherWidgetView.swift */; };
 		3F05FDEB2F1D55FD003DFFDD /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDEA2F1D55FD003DFFDD /* WeatherService.swift */; };
@@ -15,6 +14,9 @@
 		3F05FDF72F1EA220003DFFDD /* Station.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDF62F1EA220003DFFDD /* Station.swift */; };
 		3F05FDF92F1EA236003DFFDD /* StationsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDF82F1EA236003DFFDD /* StationsService.swift */; };
 		3F05FDFB2F1EA24C003DFFDD /* StationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F05FDFA2F1EA24C003DFFDD /* StationPickerView.swift */; };
+		3F84786F2F4ABA57002553A2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F84786E2F4ABA57002553A2 /* Theme.swift */; };
+		3F8478712F4ABE3D002553A2 /* ShareLinkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */; };
+		3FA000012F500000003DFFDD /* SonosAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA000002F500000003DFFDD /* SonosAuthService.swift */; };
 		E80000012B0000000000001 /* HyggeDashApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000001 /* HyggeDashApp.swift */; };
 		E80000012B0000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000002 /* ContentView.swift */; };
 		E80000012B0000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000003 /* Assets.xcassets */; };
@@ -31,7 +33,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		3FA000002F500000003DFFDD /* SonosAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosAuthService.swift; sourceTree = "<group>"; };
 		3F05FDE62F1C25D9003DFFDD /* TimeWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeWidgetView.swift; sourceTree = "<group>"; };
 		3F05FDE82F1C3947003DFFDD /* WeatherWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherWidgetView.swift; sourceTree = "<group>"; };
 		3F05FDEA2F1D55FD003DFFDD /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
@@ -40,6 +41,9 @@
 		3F05FDF82F1EA236003DFFDD /* StationsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationsService.swift; sourceTree = "<group>"; };
 		3F05FDFA2F1EA24C003DFFDD /* StationPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationPickerView.swift; sourceTree = "<group>"; };
 		3F8478682F4A7989002553A2 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		3F84786E2F4ABA57002553A2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkParser.swift; sourceTree = "<group>"; };
+		3FA000002F500000003DFFDD /* SonosAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosAuthService.swift; sourceTree = "<group>"; };
 		E80000002B0000000000000 /* HyggeDash.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HyggeDash.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E80000002B0000000000001 /* HyggeDashApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyggeDashApp.swift; sourceTree = "<group>"; };
 		E80000002B0000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -74,6 +78,8 @@
 			children = (
 				E80000004B0000000000002 /* HyggeDash */,
 				E80000004B0000000000003 /* Products */,
+				3F84786E2F4ABA57002553A2 /* Theme.swift */,
+				3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -222,7 +228,9 @@
 				E80000012B0000000000002 /* ContentView.swift in Sources */,
 				3F05FDE72F1C25D9003DFFDD /* TimeWidgetView.swift in Sources */,
 				E80000012B0000000000001 /* HyggeDashApp.swift in Sources */,
+				3F8478712F4ABE3D002553A2 /* ShareLinkParser.swift in Sources */,
 				E80000012B0000000000005 /* Quote.swift in Sources */,
+				3F84786F2F4ABA57002553A2 /* Theme.swift in Sources */,
 				E80000012B0000000000006 /* SonosCommand.swift in Sources */,
 				3F05FDEB2F1D55FD003DFFDD /* WeatherService.swift in Sources */,
 				3F05FDF92F1EA236003DFFDD /* StationsService.swift in Sources */,

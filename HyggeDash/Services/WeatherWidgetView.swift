@@ -3,32 +3,32 @@ import Foundation
 
 struct WeatherWidgetView: View {
     @ObservedObject var weatherService: WeatherService
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(weatherService.currentTemperature)
                     .font(.system(size: 72, weight: .bold, design: .rounded))
-                    .foregroundColor(.black)
+                    .foregroundColor(HyggeTheme.textPrimary)
                     .minimumScaleFactor(0.5)
-                
+
                 Image(systemName: weatherService.conditionSymbol)
                     .font(.system(size: 40))
-                    .foregroundColor(.black.opacity(0.7))
+                    .foregroundColor(HyggeTheme.accent)
                     .symbolRenderingMode(.hierarchical)
             }
-            
+
             HStack(spacing: 8) {
                 Text(weatherService.condition)
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.black.opacity(0.5))
+                    .foregroundColor(HyggeTheme.textSecondary)
 
                 if !weatherService.cityName.isEmpty {
                     Text("•")
-                        .foregroundColor(.black.opacity(0.3))
+                        .foregroundColor(HyggeTheme.textTertiary)
                     Text(weatherService.cityName)
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.black.opacity(0.5))
+                        .foregroundColor(HyggeTheme.textSecondary)
                 }
             }
 
@@ -36,27 +36,26 @@ struct WeatherWidgetView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.black.opacity(0.4))
+                        .foregroundColor(HyggeTheme.textTertiary)
                     Text(weatherService.highTemperature)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.black.opacity(0.6))
+                        .foregroundColor(HyggeTheme.textSecondary)
                 }
-                
+
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.black.opacity(0.4))
+                        .foregroundColor(HyggeTheme.textTertiary)
                     Text(weatherService.lowTemperature)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.black.opacity(0.6))
+                        .foregroundColor(HyggeTheme.textSecondary)
                 }
             }
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(HyggeTheme.cardBackground)
         .cornerRadius(24)
-        .shadow(color: .black.opacity(0.05), radius: 12, x: 0, y: 4)
     }
 }
 
@@ -64,5 +63,5 @@ struct WeatherWidgetView: View {
     WeatherWidgetView(weatherService: WeatherService())
         .padding()
         .frame(width: 300, height: 200)
-        .background(Color(.systemGroupedBackground))
+        .background(HyggeTheme.background)
 }

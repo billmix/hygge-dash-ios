@@ -37,29 +37,32 @@ struct HomeKitView: View {
             if let error = homeKitManager.errorMessage {
                 Text(error)
                     .font(.caption)
-                    .foregroundColor(.red)
+                    .foregroundColor(HyggeTheme.destructive)
                     .padding(.top, 8)
             }
+
+            Spacer(minLength: 0)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .frame(maxHeight: .infinity)
+        .background(HyggeTheme.cardBackground)
         .cornerRadius(20)
-        .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 4)
     }
 
     private var sectionHeader: some View {
         HStack {
             Image(systemName: "house.fill")
                 .font(.title2)
-                .foregroundColor(.orange)
+                .foregroundColor(HyggeTheme.accent)
             Text("Home")
                 .font(.title2)
                 .fontWeight(.semibold)
+                .foregroundColor(HyggeTheme.textPrimary)
             Spacer()
             if let homeName = homeKitManager.home?.name {
                 Text(homeName)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(HyggeTheme.textSecondary)
             }
         }
     }
@@ -68,12 +71,12 @@ struct HomeKitView: View {
         VStack(spacing: 16) {
             Image(systemName: "house.circle")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
             Text("HomeKit Access Required")
                 .font(.headline)
             Text("Please allow HomeKit access in Settings to control your smart home devices.")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
                 .multilineTextAlignment(.center)
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -90,12 +93,12 @@ struct HomeKitView: View {
         VStack(spacing: 16) {
             Image(systemName: "house.circle")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
             Text("No Home Found")
                 .font(.headline)
             Text("Set up a home in the Apple Home app to get started.")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -106,7 +109,7 @@ struct HomeKitView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Scenes")
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(homeKitManager.scenes, id: \.uniqueIdentifier) { scene in
@@ -122,7 +125,7 @@ struct HomeKitView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Lights")
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(homeKitManager.lightAccessories, id: \.uniqueIdentifier) { accessory in
@@ -142,7 +145,7 @@ struct HomeKitView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Switches")
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundColor(HyggeTheme.textSecondary)
 
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(homeKitManager.switchAccessories, id: \.uniqueIdentifier) { accessory in
@@ -176,8 +179,8 @@ struct SceneButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.orange.opacity(0.15))
-            .foregroundColor(.orange)
+            .background(HyggeTheme.accent.opacity(0.12))
+            .foregroundColor(HyggeTheme.accent)
             .cornerRadius(16)
         }
         .buttonStyle(.plain)
@@ -226,13 +229,13 @@ struct AccessoryButton: View {
                 if let brightness = brightness, isOn {
                     Text("\(brightness)%")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(HyggeTheme.textSecondary)
                 }
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isOn ? Color.yellow.opacity(0.2) : Color(.secondarySystemBackground))
-            .foregroundColor(isOn ? .orange : .secondary)
+            .background(isOn ? HyggeTheme.accent.opacity(0.15) : HyggeTheme.cardBackgroundLight)
+            .foregroundColor(isOn ? HyggeTheme.accent : HyggeTheme.textSecondary)
             .cornerRadius(16)
         }
         .buttonStyle(.plain)

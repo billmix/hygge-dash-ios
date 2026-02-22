@@ -22,12 +22,14 @@ class SonosAuthService: NSObject, ObservableObject {
     }
 
     private var redirectURI: String {
-        // Note: xcconfig treats // as a comment so HTTPS URLs can't be stored there.
-        // Redirect URI is not a secret — hardcode it.
+        // Sonos requires an HTTPS redirect URI. The page at this URL relays
+        // the auth code to our custom URL scheme (hyggehousehold://callback)
+        // which ASWebAuthenticationSession intercepts.
         return "https://hyggehousehold.web.app/callback"
     }
 
     private var accessTokenExpiresAt: Date?
+    private var authSession: ASWebAuthenticationSession?
 
     override init() {
         super.init()
@@ -50,44 +52,97 @@ class SonosAuthService: NSObject, ObservableObject {
 
         guard let url = components.url else { return }
 
-        print("🎵 Sonos auth URL: \(url.absoluteString)")
-        print("🎵 clientId: \(clientId), redirectURI: \(redirectURI)")
+        print("🎵 [AUTH] Starting OAuth flow")
+        print("🎵 [AUTH] Auth URL: \(url.absoluteString)")
+        print("🎵 [AUTH] clientId: \(clientId.prefix(8))..., redirectURI: \(redirectURI)")
+        print("🎵 [AUTH] State: \(state)")
 
-        let session = ASWebAuthenticationSession(
-            url: url,
-            callbackURLScheme: "hyggehousehold"
-        ) { [weak self] callbackURL, error in
+        // Completion handler shared by both code paths
+        let completionHandler: (URL?, Error?) -> Void = { [weak self] callbackURL, error in
+            print("🎵 [AUTH] ✅ Callback received!")
+            print("🎵 [AUTH] callbackURL: \(callbackURL?.absoluteString ?? "nil")")
+            print("🎵 [AUTH] error: \(error?.localizedDescription ?? "nil")")
+
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self else {
+                    print("🎵 [AUTH] ⚠️ Self was deallocated before callback processed")
+                    return
+                }
+
+                // Clear the session reference
+                self.authSession = nil
 
                 if let error {
-                    print("Auth error: \(error.localizedDescription)")
+                    print("🎵 [AUTH] ❌ Auth error: \(error.localizedDescription)")
+                    print("🎵 [AUTH] ❌ Error code: \((error as NSError).code), domain: \((error as NSError).domain)")
                     self.authError = error.localizedDescription
                     return
                 }
 
-                guard let callbackURL,
-                      let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
-                      let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
-                      let returnedState = components.queryItems?.first(where: { $0.name == "state" })?.value,
-                      returnedState == state else {
-                    print("Auth failed: invalid callback")
+                guard let callbackURL else {
+                    print("🎵 [AUTH] ❌ No callback URL and no error")
+                    self.authError = "No callback URL received"
                     return
                 }
 
+                guard let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) else {
+                    print("🎵 [AUTH] ❌ Could not parse callback URL: \(callbackURL)")
+                    self.authError = "Invalid callback URL"
+                    return
+                }
+
+                print("🎵 [AUTH] Callback query items: \(components.queryItems?.map { "\($0.name)=\($0.value ?? "nil")" } ?? [])")
+
+                guard let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
+                    print("🎵 [AUTH] ❌ No 'code' in callback URL")
+                    self.authError = "No authorization code received"
+                    return
+                }
+
+                guard let returnedState = components.queryItems?.first(where: { $0.name == "state" })?.value,
+                      returnedState == state else {
+                    print("🎵 [AUTH] ❌ State mismatch! Expected: \(state)")
+                    self.authError = "State mismatch in callback"
+                    return
+                }
+
+                print("🎵 [AUTH] ✅ Got auth code: \(code.prefix(8))... State verified.")
+                print("🎵 [AUTH] Exchanging code for tokens...")
+
                 do {
                     try await self.exchangeCodeForTokens(code: code)
+                    print("🎵 [AUTH] ✅ Token exchange succeeded! isAuthenticated = true")
                     self.isAuthenticated = true
                 } catch {
-                    print("Token exchange failed: \(error.localizedDescription)")
+                    print("🎵 [AUTH] ❌ Token exchange failed: \(error)")
                     self.authError = "Token exchange failed: \(error.localizedDescription)"
                 }
             }
         }
 
-        session.presentationContextProvider = self
-        session.prefersEphemeralWebBrowserSession = false
-        session.start()
+        // Use HTTPS callback (intercepts the redirect URL directly, no JS relay needed)
+        // Falls back to custom scheme for older iOS versions
+        if #available(iOS 17.4, *) {
+            print("🎵 [AUTH] Using HTTPS callback: hyggehousehold.web.app/callback")
+            authSession = ASWebAuthenticationSession(
+                url: url,
+                callback: .https(host: "hyggehousehold.web.app", path: "/callback"),
+                completionHandler: completionHandler
+            )
+        } else {
+            print("🎵 [AUTH] Using custom scheme callback: hyggehousehold")
+            authSession = ASWebAuthenticationSession(
+                url: url,
+                callbackURLScheme: "hyggehousehold",
+                completionHandler: completionHandler
+            )
+        }
+
+        authSession!.presentationContextProvider = self
+        authSession!.prefersEphemeralWebBrowserSession = false
+
+        let started = authSession!.start()
+        print("🎵 [AUTH] Session started: \(started)")
     }
 
     func refreshTokenIfNeeded() async throws -> String {
@@ -143,8 +198,13 @@ class SonosAuthService: NSObject, ObservableObject {
     // MARK: - Token Exchange
 
     private func exchangeCodeForTokens(code: String) async throws {
+        print("🎵 [TOKEN] Starting token exchange...")
+        print("🎵 [TOKEN] Token URL: \(tokenURL)")
+        print("🎵 [TOKEN] Redirect URI: \(redirectURI)")
+
         let credentials = "\(clientId):\(clientSecret)"
         guard let credentialsData = credentials.data(using: .utf8) else {
+            print("🎵 [TOKEN] ❌ Failed to encode credentials")
             throw AuthError.encodingError
         }
         let base64Credentials = credentialsData.base64EncodedString()
@@ -160,21 +220,29 @@ class SonosAuthService: NSObject, ObservableObject {
             URLQueryItem(name: "code", value: code),
             URLQueryItem(name: "redirect_uri", value: redirectURI),
         ]
-        request.httpBody = bodyComponents.percentEncodedQuery?.data(using: .utf8)
+        let bodyString = bodyComponents.percentEncodedQuery ?? ""
+        request.httpBody = bodyString.data(using: .utf8)
+        print("🎵 [TOKEN] Request body: \(bodyString.replacingOccurrences(of: code, with: "\(code.prefix(8))..."))")
 
+        print("🎵 [TOKEN] Sending token exchange request...")
         let (data, response) = try await URLSession.shared.data(for: request)
 
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-        print("🎵 Token exchange response: \(statusCode), body: \(String(data: data, encoding: .utf8) ?? "nil")")
+        let responseBody = String(data: data, encoding: .utf8) ?? "nil"
+        print("🎵 [TOKEN] Response status: \(statusCode)")
+        print("🎵 [TOKEN] Response body: \(responseBody.prefix(500))")
 
         guard statusCode == 200 else {
+            print("🎵 [TOKEN] ❌ Non-200 status code: \(statusCode)")
             throw AuthError.tokenExchangeFailed
         }
 
         let tokenResponse = try JSONDecoder().decode(TokenResponse.self, from: data)
+        print("🎵 [TOKEN] ✅ Decoded token response. ExpiresIn: \(tokenResponse.expiresIn)s")
         saveToken(tokenResponse.accessToken, for: "access_token")
         saveToken(tokenResponse.refreshToken, for: "refresh_token")
         accessTokenExpiresAt = Date().addingTimeInterval(TimeInterval(tokenResponse.expiresIn - 60))
+        print("🎵 [TOKEN] ✅ Tokens saved to keychain")
     }
 
     // MARK: - Keychain
