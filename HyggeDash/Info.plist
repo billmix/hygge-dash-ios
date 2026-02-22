@@ -18,6 +18,11 @@
 	<string>HyggeDash needs access to HomeKit to control your smart home devices and scenes.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>HyggeDash needs local network access to discover and communicate with your Sonos speakers.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_hap._tcp</string>

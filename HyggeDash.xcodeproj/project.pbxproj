@@ -18,6 +18,7 @@
 		3F8478712F4ABE3D002553A2 /* ShareLinkParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */; };
 		3F8478802F4AC077002553A2 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3F8478762F4AC077002553A2 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3F8478B22F4ACA53002553A2 /* SpotifyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8478B12F4ACA53002553A2 /* SpotifyService.swift */; };
+		3F8478B42F4ACBBB002553A2 /* SonosUPnPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8478B32F4ACBBB002553A2 /* SonosUPnPService.swift */; };
 		3FA000012F500000003DFFDD /* SonosAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA000002F500000003DFFDD /* SonosAuthService.swift */; };
 		E80000012B0000000000001 /* HyggeDashApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000001 /* HyggeDashApp.swift */; };
 		E80000012B0000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80000002B0000000000002 /* ContentView.swift */; };
@@ -71,6 +72,7 @@
 		3F8478702F4ABE3D002553A2 /* ShareLinkParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkParser.swift; sourceTree = "<group>"; };
 		3F8478762F4AC077002553A2 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8478B12F4ACA53002553A2 /* SpotifyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyService.swift; sourceTree = "<group>"; };
+		3F8478B32F4ACBBB002553A2 /* SonosUPnPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosUPnPService.swift; sourceTree = "<group>"; };
 		3FA000002F500000003DFFDD /* SonosAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonosAuthService.swift; sourceTree = "<group>"; };
 		E80000002B0000000000000 /* HyggeDash.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HyggeDash.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E80000002B0000000000001 /* HyggeDashApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyggeDashApp.swift; sourceTree = "<group>"; };
@@ -194,6 +196,7 @@
 				E80000002B0000000000009 /* QuotesService.swift */,
 				3F05FDE82F1C3947003DFFDD /* WeatherWidgetView.swift */,
 				3F8478B12F4ACA53002553A2 /* SpotifyService.swift */,
+				3F8478B32F4ACBBB002553A2 /* SonosUPnPService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -324,6 +327,7 @@
 				3F05FDE72F1C25D9003DFFDD /* TimeWidgetView.swift in Sources */,
 				E80000012B0000000000001 /* HyggeDashApp.swift in Sources */,
 				3F8478B22F4ACA53002553A2 /* SpotifyService.swift in Sources */,
+				3F8478B42F4ACBBB002553A2 /* SonosUPnPService.swift in Sources */,
 				3F8478712F4ABE3D002553A2 /* ShareLinkParser.swift in Sources */,
 				E80000012B0000000000005 /* Quote.swift in Sources */,
 				3F84786F2F4ABA57002553A2 /* Theme.swift in Sources */,

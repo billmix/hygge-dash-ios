@@ -102,7 +102,7 @@ class SonosService: ObservableObject {
 
             print("🔊 [SONOS] Groups response: \(String(data: data, encoding: .utf8)?.prefix(1000) ?? "nil")")
 
-            // Parse players for display names and store all players
+            // Parse players for display names, IPs, and store all players
             var playerNames: [String: String] = [:] // playerId -> name
             var parsedPlayers: [SonosPlayer] = []
             if let players = json["players"] as? [[String: Any]] {
@@ -110,7 +110,18 @@ class SonosService: ObservableObject {
                     if let id = player["id"] as? String,
                        let name = player["name"] as? String {
                         playerNames[id] = name
-                        parsedPlayers.append(SonosPlayer(id: id, name: name))
+
+                        // Extract IP from websocketUrl (e.g. "wss://192.168.1.25:1443/websocket/api")
+                        var ip: String?
+                        if let wsUrl = player["websocketUrl"] as? String,
+                           let urlComponents = URLComponents(string: wsUrl) {
+                            ip = urlComponents.host
+                        }
+
+                        parsedPlayers.append(SonosPlayer(id: id, name: name, ip: ip, uid: id))
+                        if let ip {
+                            print("🔊 [SONOS] Player: \(name) — IP: \(ip), UID: \(id)")
+                        }
                     }
                 }
             }
@@ -449,12 +460,8 @@ class SonosService: ObservableObject {
         if let shareLink = ShareLinkParser.parse(station.url) {
             print("🔊 [STATION] Detected \(shareLink.service) \(shareLink.type): \(shareLink.objectId)")
 
-            if shareLink.service == "Spotify" {
-                await playSpotifyContent(shareLink: shareLink, groupId: gId)
-            } else {
-                // Other services: try Sonos loadContent
-                await playViaLoadContent(shareLink: shareLink, groupId: gId)
-            }
+            // Use local UPnP for all music service links (Spotify, Apple Music, Tidal, etc.)
+            await playViaMusicService(shareLink: shareLink, groupId: gId)
         } else {
             // Direct stream URL (internet radio, etc.)
             print("🔊 [STATION] Treating as direct stream URL")
@@ -466,71 +473,46 @@ class SonosService: ObservableObject {
         await fetchPlaybackState()
     }
 
-    /// Play Spotify content via multiple strategies
-    private func playSpotifyContent(shareLink: ShareLinkInfo, groupId gId: String) async {
-        guard let spotify = spotifyService, spotify.isAuthenticated else {
-            errorMessage = "Connect your Spotify account in Settings to play Spotify links"
+    /// Play music service content via local UPnP (like soco-cli)
+    private func playViaMusicService(shareLink: ShareLinkInfo, groupId gId: String) async {
+        // Find the coordinator speaker's IP for the selected zone
+        guard let zone = selectedZone,
+              let coordinator = allPlayers.first(where: { $0.id == zone.coordinatorId }),
+              let ip = coordinator.ip else {
+            print("🔊 [UPnP] ❌ Cannot find coordinator IP for zone")
+            errorMessage = "Cannot find speaker on local network"
             return
         }
 
-        // Strategy 1: Try Spotify API without device ID (plays on last active device)
-        print("🔊 [SPOTIFY PLAY] Strategy 1: play with no device ID")
-        if await spotify.play(uri: shareLink.objectId) {
-            return
-        }
+        print("🔊 [UPnP] Playing via local UPnP: \(coordinator.name) at \(ip)")
 
-        // Strategy 2: Check for existing devices
-        print("🔊 [SPOTIFY PLAY] Strategy 2: find device and play")
-        await spotify.fetchDevices()
-        if let device = findBestSpotifyDevice(spotify: spotify) {
-            print("🔊 [SPOTIFY PLAY] Found device: \(device.name)")
-            if await spotify.play(uri: shareLink.objectId, deviceId: device.id) {
+        // Try with primary service ID, then alternatives
+        let allServiceIds = [shareLink.serviceId] + shareLink.alternativeServiceIds
+
+        for serviceId in allServiceIds {
+            do {
+                let linkWithServiceId = ShareLinkInfo(
+                    service: shareLink.service,
+                    type: shareLink.type,
+                    objectId: shareLink.objectId,
+                    serviceId: serviceId,
+                    alternativeServiceIds: []
+                )
+
+                print("🔊 [UPnP] Trying serviceId \(serviceId)...")
+                try await SonosUPnP.playShareLink(
+                    speakerIP: ip,
+                    speakerUID: coordinator.id,
+                    shareLink: linkWithServiceId
+                )
+                print("🔊 [UPnP] ✅ Playback started with serviceId \(serviceId)!")
                 return
+            } catch {
+                print("🔊 [UPnP] ❌ serviceId \(serviceId) failed: \(error)")
             }
         }
 
-        // Strategy 3: Activate Spotify on speaker via a Spotify-based Sonos Favorite,
-        // then switch to the desired content via Spotify API
-        print("🔊 [SPOTIFY PLAY] Strategy 3: bootstrap via Sonos Spotify favorite")
-        if let spotifyFavorite = favorites.first(where: { $0.service?.lowercased().contains("spotify") == true }) {
-            print("🔊 [SPOTIFY PLAY] Bootstrapping with favorite: \(spotifyFavorite.name)")
-            await playFavorite(spotifyFavorite)
-
-            // Wait for the speaker to register as a Spotify Connect device
-            for attempt in 1...5 {
-                try? await Task.sleep(for: .seconds(2))
-                await spotify.fetchDevices()
-                print("🔊 [SPOTIFY PLAY] Device check attempt \(attempt): \(spotify.availableDevices.count) devices")
-
-                if let device = findBestSpotifyDevice(spotify: spotify) {
-                    print("🔊 [SPOTIFY PLAY] ✅ Speaker appeared: \(device.name)")
-                    // Small delay to let the device fully activate
-                    try? await Task.sleep(for: .seconds(1))
-                    if await spotify.play(uri: shareLink.objectId, deviceId: device.id) {
-                        return
-                    }
-                }
-            }
-        }
-
-        print("🔊 [SPOTIFY PLAY] ❌ All strategies failed")
-        errorMessage = "Could not activate Spotify on speaker. Add a Spotify item to your Sonos Favorites to enable this."
-    }
-
-    /// Find the best Spotify Connect device matching the current Sonos zone
-    private func findBestSpotifyDevice(spotify: SpotifyService) -> SpotifyDevice? {
-        let speakerName = selectedZone?.coordinator ?? ""
-
-        // Try exact match first
-        if let match = spotify.findSonosDevice(named: speakerName) {
-            return match
-        }
-        // Try any Sonos/Speaker device
-        if let speaker = spotify.availableDevices.first(where: { $0.type == "Speaker" }) {
-            return speaker
-        }
-        // Last resort: any device
-        return spotify.availableDevices.first
+        errorMessage = "Failed to play \(shareLink.service) link"
     }
 
     /// Play a music service share link — tries multiple Sonos Cloud API approaches

@@ -44,6 +44,8 @@ enum SonosCommand: String {
 struct SonosPlayer: Identifiable {
     let id: String
     let name: String
+    let ip: String?      // Extracted from websocketUrl for local UPnP access
+    let uid: String?     // RINCON_xxx player ID, used as UPnP device UID
 }
 
 struct SonosFavorite: Identifiable {
