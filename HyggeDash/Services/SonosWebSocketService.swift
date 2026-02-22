@@ -28,7 +28,9 @@ class SonosWebSocketService: NSObject, ObservableObject {
 
     // MARK: - Connect / Disconnect
 
-    func connect(websocketUrl: String, householdId: String, groupId: String) {
+    private var accessToken: String?
+
+    func connect(websocketUrl: String, householdId: String, groupId: String, accessToken: String?) {
         // Don't reconnect if already connected to the same URL
         if currentURL == websocketUrl && isConnected { return }
 
@@ -36,6 +38,7 @@ class SonosWebSocketService: NSObject, ObservableObject {
         self.currentURL = websocketUrl
         self.householdId = householdId
         self.groupId = groupId
+        self.accessToken = accessToken
 
         guard let url = URL(string: websocketUrl) else {
             print("🔌 [WS] Invalid URL: \(websocketUrl)")
@@ -51,6 +54,11 @@ class SonosWebSocketService: NSObject, ObservableObject {
         // API key is the Sonos Client ID
         let apiKey = Bundle.main.infoDictionary?["SonosClientID"] as? String ?? ""
         request.setValue(apiKey, forHTTPHeaderField: "X-Sonos-Api-Key")
+
+        // OAuth access token for authorization
+        if let token = accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let config = URLSessionConfiguration.default
         urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
@@ -245,7 +253,7 @@ class SonosWebSocketService: NSObject, ObservableObject {
                   let hId = householdId,
                   let gId = groupId else { return }
             print("🔌 [WS] Reconnecting (attempt \(self.reconnectAttempts)/\(self.maxReconnectAttempts))...")
-            self.connect(websocketUrl: url, householdId: hId, groupId: gId)
+            self.connect(websocketUrl: url, householdId: hId, groupId: gId, accessToken: self.accessToken)
         }
     }
 }

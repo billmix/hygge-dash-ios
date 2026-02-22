@@ -88,7 +88,10 @@ class SonosService: ObservableObject {
         }
 
         let wsUrl = "wss://\(ip):1443/websocket/api"
-        webSocket.connect(websocketUrl: wsUrl, householdId: hId, groupId: gId)
+        Task {
+            let token = try? await authService?.refreshTokenIfNeeded()
+            webSocket.connect(websocketUrl: wsUrl, householdId: hId, groupId: gId, accessToken: token)
+        }
         useWebSocket = true
 
         // Stop polling when WebSocket is active
