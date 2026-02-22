@@ -397,6 +397,7 @@ struct MediaControlView: View {
     private var volumeSection: some View {
         HStack(spacing: 16) {
             MediaButton(systemImage: "speaker.minus.fill", isSmall: true) {
+                localVolume = max(0, localVolume - 5)
                 Task { await sonosService.sendCommand(.volumeDown) }
             }
 
@@ -429,6 +430,7 @@ struct MediaControlView: View {
             }
 
             MediaButton(systemImage: "speaker.plus.fill", isSmall: true) {
+                localVolume = min(100, localVolume + 5)
                 Task { await sonosService.sendCommand(.volumeUp) }
             }
         }
