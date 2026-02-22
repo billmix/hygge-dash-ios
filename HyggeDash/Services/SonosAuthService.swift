@@ -7,6 +7,7 @@ import Combine
 @MainActor
 class SonosAuthService: NSObject, ObservableObject {
     @Published var isAuthenticated = false
+    @Published var authError: String?
 
     private let authURL = "https://api.sonos.com/login/v3/oauth"
     private let tokenURL = "https://api.sonos.com/login/v3/oauth/access"
@@ -61,6 +62,7 @@ class SonosAuthService: NSObject, ObservableObject {
 
                 if let error {
                     print("Auth error: \(error.localizedDescription)")
+                    self.authError = error.localizedDescription
                     return
                 }
 
@@ -78,6 +80,7 @@ class SonosAuthService: NSObject, ObservableObject {
                     self.isAuthenticated = true
                 } catch {
                     print("Token exchange failed: \(error.localizedDescription)")
+                    self.authError = "Token exchange failed: \(error.localizedDescription)"
                 }
             }
         }
@@ -151,12 +154,20 @@ class SonosAuthService: NSObject, ObservableObject {
         request.setValue("Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
-        let body = "grant_type=authorization_code&code=\(code)&redirect_uri=\(redirectURI)"
-        request.httpBody = body.data(using: .utf8)
+        var bodyComponents = URLComponents()
+        bodyComponents.queryItems = [
+            URLQueryItem(name: "grant_type", value: "authorization_code"),
+            URLQueryItem(name: "code", value: code),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
+        ]
+        request.httpBody = bodyComponents.percentEncodedQuery?.data(using: .utf8)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+        print("🎵 Token exchange response: \(statusCode), body: \(String(data: data, encoding: .utf8) ?? "nil")")
+
+        guard statusCode == 200 else {
             throw AuthError.tokenExchangeFailed
         }
 

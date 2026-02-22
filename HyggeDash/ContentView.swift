@@ -106,8 +106,15 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 40)
 
+                if let error = sonosAuthService.authError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+
                 Button("Skip for Now") {
-                    // Dismiss by navigating to settings later
                     showingSettings = true
                 }
                 .font(.subheadline)
